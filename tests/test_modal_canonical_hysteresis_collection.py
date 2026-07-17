@@ -6,6 +6,7 @@ from sim.experiments.modal_canonical_hysteresis_collection import (
     COLLECTION_VOLUME_MOUNT_PATH,
     canonical_kernel_sha256,
     collection_artifact_path,
+    collection_volume_relative_path,
     collection_sha256,
     collect_canonical_hysteresis,
     deserialize_collection,
@@ -55,6 +56,7 @@ def test_local_core_records_canonical_provenance_without_hysteresis_inference():
 def test_collection_id_is_uuid4_and_cannot_escape_volume_path():
     collection_id = "4f0dce79-9d19-4cdf-bc35-508fa95a5521"
     assert validate_collection_id(collection_id) == collection_id
+    assert collection_volume_relative_path(collection_id) == f"{collection_id}.json"
     assert collection_artifact_path(collection_id) == (
         f"{COLLECTION_VOLUME_MOUNT_PATH}/{collection_id}.json"
     )

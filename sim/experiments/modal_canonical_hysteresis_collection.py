@@ -13,7 +13,7 @@ Monitor it with ``modal app list`` (and ``modal app logs <app-id>``).  Download
 its durable result after it completes with::
 
     modal volume get canonical-hysteresis-raw-collections \
-      collections/4f0dce79-9d19-4cdf-bc35-508fa95a5521.json hysteresis-raw.json
+      4f0dce79-9d19-4cdf-bc35-508fa95a5521.json hysteresis-raw.json
 
 The normal local entrypoint accepts the same ``--collection-id`` and can write
 an optional local copy only after reading and verifying that Volume artifact.
@@ -64,9 +64,14 @@ def validate_collection_id(collection_id: str) -> str:
     return collection_id
 
 
+def collection_volume_relative_path(collection_id: str) -> str:
+    """Return the validated artifact path relative to the Volume root."""
+    return f"{validate_collection_id(collection_id)}.json"
+
+
 def collection_artifact_path(collection_id: str) -> str:
-    """Return the absolute mounted Volume path for a validated collection ID."""
-    return f"{COLLECTION_VOLUME_MOUNT_PATH}/{validate_collection_id(collection_id)}.json"
+    """Return the absolute mounted-container path for a validated collection ID."""
+    return f"{COLLECTION_VOLUME_MOUNT_PATH}/{collection_volume_relative_path(collection_id)}"
 
 
 def serialize_collection(collection: dict[str, Any]) -> bytes:
@@ -237,7 +242,8 @@ if modal is not None:
         return {
             "collection_id": collection_id,
             "volume_name": COLLECTION_VOLUME_NAME,
-            "volume_path": artifact_path,
+            "container_path": artifact_path,
+            "volume_relative_path": collection_volume_relative_path(collection_id),
             "checksum": checksum,
             "sha256": checksum,
         }
@@ -254,7 +260,6 @@ if modal is not None:
         """Write a local copy only after reading the committed Volume artifact."""
         artifact = remote_collect.remote(collection_id, replicates, steps_per_gamma, seed, gammas)
         # The returned object is metadata, never an alternative result source.
-        volume_path = artifact["volume_path"].lstrip("/")
-        serialized = b"".join(collection_volume.read_file(volume_path))
+        serialized = b"".join(collection_volume.read_file(artifact["volume_relative_path"]))
         collection = deserialize_collection(serialized, artifact["checksum"])
         write_collection(output, collection)
