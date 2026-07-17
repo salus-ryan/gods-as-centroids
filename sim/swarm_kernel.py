@@ -143,7 +143,7 @@ class Config:
     # New parameters for deity priors and social dynamics
     use_deity_priors: bool = True          # use DEITY_PRIORS vs random vectors
     belief_influence: float = 0.15         # weight of agent belief in production
-    coercion: float = 0.0                  # 0=polytheistic, 1=monotheistic pressure
+    coercion: float = 0.0                  # contact-homophily strength; 0 uses uniform neighbor selection
     social_network: str = "small_world"    # "random", "small_world", "preferential"
     social_k: int = 4                      # small-world graph param
     social_p: float = 0.1                  # small-world graph param
@@ -571,8 +571,8 @@ class SwarmKernel:
 
     # ---------- clustering ---------- #
     def _update_clusters(self):
-        # Coercion widens the absorption radius (§4.1: basin widening)
-        effective_threshold = self.cfg.cluster_threshold + 0.3 * self.cfg.coercion
+        # Clustering uses the configured, coercion-independent threshold.
+        effective_threshold = self.cfg.cluster_threshold
         self.centroids = []
         self.clusters = []
 
@@ -610,8 +610,8 @@ class SwarmKernel:
                 new_centroids.append(scale(centroid, 1.0 / len(cluster)))
             new_clusters.append(cluster)
 
-        # Fusion (§3.1): merge nearby centroids under coercion
-        merge_dist = 0.15 + 0.35 * self.cfg.coercion
+        # Fusion (§3.1): merge nearby centroids at a fixed base distance.
+        merge_dist = 0.15
         merged = True
         while merged:
             merged = False
@@ -965,27 +965,9 @@ class SwarmKernel:
         if prophet_event:
             self.log.setdefault("prophets", []).append(prophet_event)
 
-        # clustering + attractor deepening (Definition 4a, §4.1)
+        # clustering and fission / schism (Definition 10, §3.2)
         if self.t % self.cfg.cluster_update_freq == 0:
             self._update_clusters()
-            # Attractor deepening: agents drift toward their cluster centroid
-            # Pull strength is proportional to coercion γ (§4.1)
-            if self.cfg.coercion > 0 and self.centroids:
-                eta_base = 0.05 * self.cfg.coercion  # susceptibility scales with γ
-                for ci, cluster in enumerate(self.clusters):
-                    if ci >= len(self.centroids):
-                        break
-                    centroid = self.centroids[ci]
-                    for agent_id in cluster:
-                        a = self.agents[agent_id]
-                        # Susceptibility: lower-prestige agents are pulled more
-                        eta = eta_base * (1.0 / (a.w + 0.1))
-                        eta = min(eta, 0.3)  # cap to prevent instability
-                        for k in AXES:
-                            a.belief[k] += eta * (centroid[k] - a.belief[k])
-                        # Renormalize
-                        n = norm(a.belief) or 1.0
-                        a.belief = {k: a.belief[k] / n for k in AXES}
 
             # fission / schism (Definition 10, §3.2)
             fission_events = self.maybe_fission()

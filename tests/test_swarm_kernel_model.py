@@ -114,3 +114,51 @@ def test_network_modes_are_deterministic_and_distinct():
         graphs[mode] = _graph_edges(SwarmKernel(cfg))
         assert graphs[mode] == _graph_edges(SwarmKernel(cfg))
     assert len(set(graphs.values())) == 3
+
+
+def _axis_belief(axis, value=1.0):
+    return {name: value if name == axis else 0.0 for name in AXES}
+
+
+def test_clustering_is_identical_for_equal_states_at_zero_and_full_coercion():
+    configs = [
+        Config(N=4, seed=18, use_deity_priors=False, coercion=gamma,
+               cluster_threshold=0.4, fission_min_cluster_size=99)
+        for gamma in (0.0, 1.0)
+    ]
+    kernels = [SwarmKernel(cfg) for cfg in configs]
+    second_group = {
+        axis: (0.5 if axis == "authority" else math.sqrt(0.75) if axis == "justice" else 0.0)
+        for axis in AXES
+    }
+    for kernel in kernels:
+        for agent in kernel.agents[:2]:
+            agent.belief = _axis_belief("authority")
+        for agent in kernel.agents[2:]:
+            agent.belief = dict(second_group)
+        kernel._update_clusters()
+
+    # The groups are 0.5 cosine-distance apart: separate under the fixed
+    # cluster threshold, regardless of contact-homophily strength.
+    assert kernels[0].clusters == [[0, 1], [2, 3]]
+    assert kernels[1].clusters == kernels[0].clusters
+    assert kernels[1].centroids == kernels[0].centroids
+
+
+def test_coercion_deterministically_weights_contact_selection_by_homophily():
+    def contact_trace(coercion):
+        kernel = SwarmKernel(Config(N=4, seed=29, use_deity_priors=False, coercion=coercion))
+        speaker, similar, neutral, dissimilar = kernel.agents
+        speaker.belief = _axis_belief("authority")
+        similar.belief = _axis_belief("authority")
+        neutral.belief = _axis_belief("justice")
+        dissimilar.belief = _axis_belief("authority", -1.0)
+        kernel.social_graph = {0: [1, 2, 3], 1: [0], 2: [0], 3: [0]}
+        return [hearer.id for _ in range(20) for hearer in kernel._select_hearers(speaker)]
+
+    uniform_trace = contact_trace(0.0)
+    weighted_trace = contact_trace(1.0)
+
+    assert weighted_trace == contact_trace(1.0)
+    assert weighted_trace != uniform_trace
+    assert weighted_trace.count(1) > weighted_trace.count(3)
