@@ -36,3 +36,7 @@ docs/paper-math-preview.png
 
 # Stale artifacts
 https-*
+
+# Local research orchestration worktrees and process logs
+.research/worktrees/
+.research/artifacts/**/*.stderr
