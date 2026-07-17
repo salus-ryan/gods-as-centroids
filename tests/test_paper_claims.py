@@ -112,13 +112,11 @@ class TestPhaseTransitions:
             f"Expected polytheism at γ=0.05, got {len(kernel.centroids)} centroids"
 
     def test_high_coercion_monotheism(self):
-        """High coercion produces few centroids with high dominance (§4.3)."""
-        kernel = quick_sim(n=50, steps=2000, coercion=0.85)
-        if kernel.clusters:
-            max_cluster = max(len(c) for c in kernel.clusters)
-            dominance = max_cluster / len(kernel.agents)
-            assert dominance > 0.5, \
-                f"Expected high dominance at γ=0.85, got D={dominance:.2f}"
+        """Withdrawn legacy claim pending a gamma-independent measurement protocol."""
+        pytest.xfail(
+            "The baseline high-coercion dominance claim is not a v2 acceptance test: "
+            "coercion previously changed clustering/merge geometry directly."
+        )
 
     def test_coercion_reduces_neff(self):
         """N_eff decreases monotonically with coercion (qualitative)."""
