@@ -71,8 +71,12 @@ VOWELS = set("aeiou")
 
 
 def rnd_unit_vec(rng: random.Random) -> Dict[str, float]:
-    v = {a: rng.random() for a in AXES}
-    n = math.sqrt(sum(x * x for x in v.values())) or 1.0
+    """Sample uniformly from the full unit sphere using normalized Gaussians."""
+    v = {a: rng.gauss(0.0, 1.0) for a in AXES}
+    n = math.sqrt(sum(x * x for x in v.values()))
+    # The all-zero draw has probability zero, but keep the function total.
+    if n == 0.0:
+        return rnd_unit_vec(rng)
     return {k: x / n for k, x in v.items()}
 
 
@@ -124,7 +128,8 @@ class Config:
     ritual_period: int = 50                # steps between ritual frames
     ritual_bonus: float = 0.10             # improves success threshold
     base_success_thresh: float = 0.58      # cosine similarity threshold
-    mutation_rate: float = 0.08            # per agent per step
+    mutation_rate: float = 0.08            # Gaussian belief-noise magnitude per participating update
+    form_mutation_rate: float = 0.08       # chance of symbolic-form mutation; preserves the former default
     compounding_rate: float = 0.02         # chance to compound two forms
     lenition_rate: float = 0.25
     redup_rate: float = 0.10
@@ -246,7 +251,12 @@ class Agent:
     # Accessibility Corollary: sensory channel restrictions
     sensory_channels: List[str] = field(default_factory=lambda: list(SENSORY_CHANNELS.keys()))
     
-    def project_context(self, context_vec: Dict[str, float], noise: float = 0.0) -> Dict[str, float]:
+    def project_context(
+        self,
+        context_vec: Dict[str, float],
+        noise: float = 0.0,
+        rng: Optional[random.Random] = None,
+    ) -> Dict[str, float]:
         """Project context through available sensory channels (φ_s mapping)"""
         if len(self.sensory_channels) == len(SENSORY_CHANNELS):
             # No restrictions - return full context
@@ -271,9 +281,10 @@ class Agent:
         
         # Add channel noise if specified
         if noise > 0.0:
-            import random
+            if rng is None:
+                raise ValueError("projection noise requires a kernel-owned RNG")
             for axis in projected:
-                projected[axis] += random.gauss(0, noise)
+                projected[axis] += rng.gauss(0, noise)
         
         # Renormalize
         n = norm(projected) or 1.0
@@ -338,6 +349,7 @@ class SwarmKernel:
         self.world = GridWorld(cfg, self.rng)
         self.morph = Morphology(cfg, self.rng)
         self.agents: List[Agent] = []
+        self.social_graph: Dict[int, List[int]] = {}
         self._init_agents()
         self.t = 0
         self.gen = 0
@@ -351,7 +363,6 @@ class SwarmKernel:
         self.pref_form: Dict[int, Optional[str]] = {a.id: None for a in self.agents}
         self.metrics = Metrics()
         self.log: Dict[str, List[Tuple[int, float]]] = defaultdict(list)
-        self.social_graph: Dict[int, List[int]] = {}
         self.clusters: List[List[int]] = []
         self.centroids: List[Dict[str, float]] = []
 
@@ -395,24 +406,63 @@ class SwarmKernel:
 
     # ---------- social network ---------- #
     def _build_social_network(self):
-        # builds a Watts-Strogatz small-world graph
-        self.social_graph = {i: [] for i in range(self.cfg.N)}
-        k = self.cfg.social_k // 2
-        for i in range(self.cfg.N):
-            for j in range(1, k + 1):
-                neighbor = (i + j) % self.cfg.N
-                self.social_graph[i].append(neighbor)
-                self.social_graph[neighbor].append(i)
-        # rewire
-        for i in range(self.cfg.N):
-            for j in range(len(self.social_graph[i])):
-                if self.rng.random() < self.cfg.social_p:
-                    neighbor = self.social_graph[i][j]
-                    self.social_graph[i].remove(neighbor)
-                    self.social_graph[neighbor].remove(i)
-                    new_neighbor = self.rng.choice([n for n in range(self.cfg.N) if n != i and n not in self.social_graph[i]])
-                    self.social_graph[i].append(new_neighbor)
-                    self.social_graph[new_neighbor].append(i)
+        """Build a deterministic simple undirected graph in the requested mode."""
+        n = self.cfg.N
+        adjacency = {i: set() for i in range(n)}
+
+        def add_edge(a: int, b: int) -> None:
+            if a != b:
+                adjacency[a].add(b)
+                adjacency[b].add(a)
+
+        mode = self.cfg.social_network
+        if mode == "random":
+            # Erdos-Renyi graph with social_k as the target expected degree.
+            probability = clamp(self.cfg.social_k / max(1, n - 1), 0.0, 1.0)
+            for i in range(n):
+                for j in range(i + 1, n):
+                    if self.rng.random() < probability:
+                        add_edge(i, j)
+        elif mode == "small_world":
+            # Watts-Strogatz ring lattice, then rewire each clockwise edge once.
+            degree = min(max(0, self.cfg.social_k), max(0, n - 1))
+            degree -= degree % 2
+            clockwise_edges = []
+            for i in range(n):
+                for offset in range(1, degree // 2 + 1):
+                    neighbor = (i + offset) % n
+                    add_edge(i, neighbor)
+                    clockwise_edges.append((i, neighbor))
+            for i, neighbor in clockwise_edges:
+                if self.rng.random() >= self.cfg.social_p:
+                    continue
+                adjacency[i].remove(neighbor)
+                adjacency[neighbor].remove(i)
+                candidates = [node for node in range(n) if node != i and node not in adjacency[i]]
+                if candidates:
+                    add_edge(i, self.rng.choice(candidates))
+                else:
+                    add_edge(i, neighbor)
+        elif mode == "preferential":
+            # Barabasi-Albert attachment; social_k is the target mean degree.
+            attachments = min(max(0, self.cfg.social_k // 2), max(0, n - 1))
+            seed_size = min(n, attachments + 1)
+            for i in range(seed_size):
+                for j in range(i + 1, seed_size):
+                    add_edge(i, j)
+            for node in range(seed_size, n):
+                for _ in range(min(attachments, node)):
+                    candidates = [other for other in range(node) if other not in adjacency[node]]
+                    if not candidates:
+                        break
+                    weights = [len(adjacency[other]) for other in candidates]
+                    # A zero-degree seed (possible when social_k == 0) is uniform.
+                    chosen = self.rng.choices(candidates, weights=weights if sum(weights) else None, k=1)[0]
+                    add_edge(node, chosen)
+        else:
+            raise ValueError(f"unknown social_network mode: {mode!r}")
+
+        self.social_graph = {node: sorted(neighbors) for node, neighbors in adjacency.items()}
 
     def _select_hearers(self, speaker: Agent) -> List[Agent]:
         neighbors = self.social_graph.get(speaker.id, [])
@@ -483,7 +533,7 @@ class SwarmKernel:
         # Apply sensory channel projections for each hearer
         preds = []
         for h in hearers:
-            projected_ctx = h.project_context(ctx.vec, self.cfg.channel_noise)
+            projected_ctx = h.project_context(ctx.vec, self.cfg.channel_noise, self.rng)
             pred = self.interpret(h, msg)
             preds.append(pred)
         
@@ -495,7 +545,7 @@ class SwarmKernel:
     def learn_from(self, agent: Agent, msg: List[str], ctx: Context, success: bool):
         lr = self.cfg.learning_rate if success else -self.cfg.penalty_rate
         # Apply agent's sensory projection to context for learning
-        projected_ctx = agent.project_context(ctx.vec, self.cfg.channel_noise)
+        projected_ctx = agent.project_context(ctx.vec, self.cfg.channel_noise, self.rng)
         # Blend projected context with agent belief for learning target
         blend_weight = 0.2  # how much belief influences learning
         ctx_blend = {k: (1-blend_weight)*projected_ctx[k] + blend_weight*agent.belief[k] for k in AXES}
@@ -585,8 +635,15 @@ class SwarmKernel:
         self.clusters = new_clusters
 
     # ---------- mutation & drift ---------- #
+    def mutate_belief(self, agent: Agent):
+        """Apply continuous, kernel-seeded Gaussian belief noise and renormalize."""
+        if self.cfg.mutation_rate <= 0.0:
+            return
+        agent.belief = jitter_vec(agent.belief, self.rng, self.cfg.mutation_rate)
+
     def mutate_agent(self, agent: Agent):
-        if self.rng.random() >= self.cfg.mutation_rate:
+        """Apply symbolic-form mutation independently of belief mutation."""
+        if self.rng.random() >= self.cfg.form_mutation_rate:
             return
         forms = list(agent.known_forms())
         if not forms:
@@ -889,8 +946,10 @@ class SwarmKernel:
         m_emb = self.interpret(speaker, msg)
         self.ctx_window.append((ctx.vec, m_emb))
 
-        # mutations
-        for a in [speaker] + hearers:
+        # Mutate each unique participant once: belief noise and form changes are separate.
+        participants = {a.id: a for a in [speaker] + hearers}.values()
+        for a in participants:
+            self.mutate_belief(a)
             self.mutate_agent(a)
 
         # metrics
