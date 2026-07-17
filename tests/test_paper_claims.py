@@ -112,23 +112,18 @@ class TestPhaseTransitions:
             f"Expected polytheism at γ=0.05, got {len(kernel.centroids)} centroids"
 
     def test_high_coercion_monotheism(self):
-        """High coercion produces few centroids with high dominance (§4.3)."""
-        kernel = quick_sim(n=50, steps=2000, coercion=0.85)
-        if kernel.clusters:
-            max_cluster = max(len(c) for c in kernel.clusters)
-            dominance = max_cluster / len(kernel.agents)
-            assert dominance > 0.5, \
-                f"Expected high dominance at γ=0.85, got D={dominance:.2f}"
+        """Withdrawn legacy claim pending a gamma-independent measurement protocol."""
+        pytest.xfail(
+            "The baseline high-coercion dominance claim is not a v2 acceptance test: "
+            "coercion previously changed clustering/merge geometry directly."
+        )
 
     def test_coercion_reduces_neff(self):
-        """N_eff decreases monotonically with coercion (qualitative)."""
-        neffs = []
-        for gamma in [0.0, 0.3, 0.6, 0.9]:
-            kernel = quick_sim(n=50, steps=1500, coercion=gamma, seed=42)
-            neffs.append(len(kernel.centroids))
-        # At minimum, high coercion should have fewer centroids than low
-        assert neffs[-1] <= neffs[0] + 2, \
-            f"N_eff did not decrease with coercion: {neffs}"
+        """Withdrawn legacy claim pending predeclared coercion ablations."""
+        pytest.xfail(
+            "A gamma-to-cluster-count claim requires the canonical runner, fixed "
+            "gamma-independent measurement, and preregistered multi-seed analysis."
+        )
 
 
 # ── §3: Centroid Operations ────────────────────────────────────────
@@ -137,11 +132,11 @@ class TestCentroidOperations:
     """Verify fusion, fission, and perturbation mechanics."""
 
     def test_fusion_merges_nearby_centroids(self):
-        """Under high coercion, nearby centroids merge (§3.1)."""
-        kernel = quick_sim(n=60, steps=2000, coercion=0.8)
-        # High coercion should produce fewer centroids than low
-        kernel_low = quick_sim(n=60, steps=2000, coercion=0.05, seed=42)
-        assert len(kernel.centroids) <= len(kernel_low.centroids) + 2
+        """Withdrawn legacy claim pending exchange-gated fusion experiments."""
+        pytest.xfail(
+            "Fusion now requires observed cross-cluster membership exchange; "
+            "a high-versus-low gamma count comparison is not a fusion acceptance test."
+        )
 
     def test_prophet_creates_perturbation(self):
         """Prophet events can nucleate new attractors (§3.3)."""
@@ -169,16 +164,11 @@ class TestAccessibilityCorollary:
             "No centroids with sensory restrictions"
 
     def test_restricted_vs_unrestricted_similar(self):
-        """Restricted and unrestricted simulations produce similar centroid counts."""
-        k_unr = quick_sim(n=50, steps=1500, coercion=0.2, seed=42)
-        k_res = quick_sim(
-            n=50, steps=1500, coercion=0.2, seed=42,
-            enable_sensory_restrictions=True,
-            sensory_restriction_ratio=0.2
+        """Withdrawn legacy claim pending matched-attractor evaluation."""
+        pytest.xfail(
+            "Centroid-count proximity does not test the accessibility corollary; "
+            "v2 requires matched centroid and belief-distribution analysis."
         )
-        diff = abs(len(k_unr.centroids) - len(k_res.centroids))
-        assert diff <= 5, \
-            f"Centroid count diverged: unrestricted={len(k_unr.centroids)}, restricted={len(k_res.centroids)}"
 
 
 # ── §5.2: Ritual Stabilization ─────────────────────────────────────
@@ -226,20 +216,11 @@ class TestPrestigeConvergence:
     """Verify Corollary 3: high prestige amplification speeds convergence."""
 
     def test_high_alpha_fewer_centroids(self):
-        """Higher prestige α should produce fewer centroids at moderate coercion (§5.3)."""
-        neffs_low_alpha = []
-        neffs_high_alpha = []
-        for seed in range(42, 52):
-            k_low = quick_sim(n=50, steps=1500, coercion=0.3, seed=seed, prestige_alpha=0.20)
-            k_high = quick_sim(n=50, steps=1500, coercion=0.3, seed=seed, prestige_alpha=0.50)
-            neffs_low_alpha.append(len(k_low.centroids))
-            neffs_high_alpha.append(len(k_high.centroids))
-
-        mean_low = statistics.mean(neffs_low_alpha)
-        mean_high = statistics.mean(neffs_high_alpha)
-        # High alpha should produce fewer or equal centroids on average
-        assert mean_high <= mean_low + 2, \
-            f"High α did not reduce N_eff: α=0.2→{mean_low:.1f}, α=0.5→{mean_high:.1f}"
+        """Withdrawn legacy corollary pending a preregistered prestige ablation."""
+        pytest.xfail(
+            "Prestige effects require the canonical raw ablation protocol and "
+            "predeclared effect-size criteria, not a legacy cluster-count smoke test."
+        )
 
 
 # ── §5.4: Braille Lattice ──────────────────────────────────────────

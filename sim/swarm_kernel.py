@@ -71,8 +71,12 @@ VOWELS = set("aeiou")
 
 
 def rnd_unit_vec(rng: random.Random) -> Dict[str, float]:
-    v = {a: rng.random() for a in AXES}
-    n = math.sqrt(sum(x * x for x in v.values())) or 1.0
+    """Sample uniformly from the full unit sphere using normalized Gaussians."""
+    v = {a: rng.gauss(0.0, 1.0) for a in AXES}
+    n = math.sqrt(sum(x * x for x in v.values()))
+    # The all-zero draw has probability zero, but keep the function total.
+    if n == 0.0:
+        return rnd_unit_vec(rng)
     return {k: x / n for k, x in v.items()}
 
 
@@ -124,7 +128,8 @@ class Config:
     ritual_period: int = 50                # steps between ritual frames
     ritual_bonus: float = 0.10             # improves success threshold
     base_success_thresh: float = 0.58      # cosine similarity threshold
-    mutation_rate: float = 0.08            # per agent per step
+    mutation_rate: float = 0.08            # Gaussian belief-noise magnitude per participating update
+    form_mutation_rate: float = 0.08       # chance of symbolic-form mutation; preserves the former default
     compounding_rate: float = 0.02         # chance to compound two forms
     lenition_rate: float = 0.25
     redup_rate: float = 0.10
@@ -138,12 +143,14 @@ class Config:
     # New parameters for deity priors and social dynamics
     use_deity_priors: bool = True          # use DEITY_PRIORS vs random vectors
     belief_influence: float = 0.15         # weight of agent belief in production
-    coercion: float = 0.0                  # 0=polytheistic, 1=monotheistic pressure
+    coercion: float = 0.0                  # contact-homophily strength; 0 uses uniform neighbor selection
     social_network: str = "small_world"    # "random", "small_world", "preferential"
     social_k: int = 4                      # small-world graph param
     social_p: float = 0.1                  # small-world graph param
     cluster_update_freq: int = 100         # steps between clustering updates
-    cluster_threshold: float = 0.4         # distance to form new cluster
+    cluster_threshold: float = 0.4         # cosine distance edge threshold for connected-component clustering
+    exchange_window: int = 3               # cluster epochs retained when measuring cross-cluster membership exchange
+    exchange_threshold: int = 1            # minimum agent label transitions between a pair required before fusion
     # Prophet events (Definition 11, §3.3)
     prophet_rate: float = 0.0                  # probability of prophet event per step
     prophet_pull_fraction: float = 0.15        # fraction of most-similar agents pulled
@@ -245,37 +252,47 @@ class Agent:
     freq: Counter = field(default_factory=Counter)
     # Accessibility Corollary: sensory channel restrictions
     sensory_channels: List[str] = field(default_factory=lambda: list(SENSORY_CHANNELS.keys()))
+    # Persistent identity assigned at a cluster epoch; None before the first one.
+    cluster_label: Optional[int] = None
     
-    def project_context(self, context_vec: Dict[str, float], noise: float = 0.0) -> Dict[str, float]:
-        """Project context through available sensory channels (φ_s mapping)"""
-        if len(self.sensory_channels) == len(SENSORY_CHANNELS):
-            # No restrictions - return full context
+    def project_context(
+        self,
+        context_vec: Dict[str, float],
+        noise: float = 0.0,
+        rng: Optional[random.Random] = None,
+    ) -> Dict[str, float]:
+        """Project a semantic vector through this agent's available channels."""
+        if set(self.sensory_channels) == set(SENSORY_CHANNELS):
+            # No restrictions - preserve the original full-space behavior.
             return context_vec.copy()
-        
-        # Restricted channels - project only through available modalities
+
+        # Restricted channels - project only through available modalities.
         projected = {k: 0.0 for k in AXES}
+        accessible_axes = set()
         channel_count = 0
-        
         for channel in self.sensory_channels:
             if channel in SENSORY_CHANNELS:
                 channel_axes = SENSORY_CHANNELS[channel]
+                accessible_axes.update(channel_axes)
                 for axis in channel_axes:
                     if axis in context_vec:
                         projected[axis] += context_vec[axis]
                         channel_count += 1
-        
-        # Normalize by number of available channels (b_i = 1/|S_i| * sum)
+
+        # Normalize by number of available channels (b_i = 1/|S_i| * sum).
         if channel_count > 0:
             for axis in projected:
                 projected[axis] /= len(self.sensory_channels)
-        
-        # Add channel noise if specified
+
+        # Noise belongs to the observed context, and cannot create inaccessible
+        # semantic dimensions.
         if noise > 0.0:
-            import random
-            for axis in projected:
-                projected[axis] += random.gauss(0, noise)
-        
-        # Renormalize
+            if rng is None:
+                raise ValueError("projection noise requires a kernel-owned RNG")
+            for axis in accessible_axes:
+                projected[axis] += rng.gauss(0, noise)
+
+        # Renormalize.
         n = norm(projected) or 1.0
         return {k: projected[k] / n for k in AXES}
 
@@ -338,6 +355,7 @@ class SwarmKernel:
         self.world = GridWorld(cfg, self.rng)
         self.morph = Morphology(cfg, self.rng)
         self.agents: List[Agent] = []
+        self.social_graph: Dict[int, List[int]] = {}
         self._init_agents()
         self.t = 0
         self.gen = 0
@@ -351,9 +369,16 @@ class SwarmKernel:
         self.pref_form: Dict[int, Optional[str]] = {a.id: None for a in self.agents}
         self.metrics = Metrics()
         self.log: Dict[str, List[Tuple[int, float]]] = defaultdict(list)
-        self.social_graph: Dict[int, List[int]] = {}
         self.clusters: List[List[int]] = []
         self.centroids: List[Dict[str, float]] = []
+        # Snapshots are final cluster memberships at each cluster epoch.  They
+        # make exchange observable rather than inferred from centroid geometry.
+        self.cluster_labels: Dict[int, int] = {}
+        self.cluster_history: List[Dict[int, int]] = []
+        self._next_cluster_label = 0
+        # Parent IDs selected for each child at the latest generation boundary.
+        # This is transmission provenance, not persistent agent state.
+        self.last_transmission_mentors: Dict[int, Tuple[int, ...]] = {}
 
     # ---------- initialization ---------- #
     def _init_agents(self):
@@ -395,24 +420,63 @@ class SwarmKernel:
 
     # ---------- social network ---------- #
     def _build_social_network(self):
-        # builds a Watts-Strogatz small-world graph
-        self.social_graph = {i: [] for i in range(self.cfg.N)}
-        k = self.cfg.social_k // 2
-        for i in range(self.cfg.N):
-            for j in range(1, k + 1):
-                neighbor = (i + j) % self.cfg.N
-                self.social_graph[i].append(neighbor)
-                self.social_graph[neighbor].append(i)
-        # rewire
-        for i in range(self.cfg.N):
-            for j in range(len(self.social_graph[i])):
-                if self.rng.random() < self.cfg.social_p:
-                    neighbor = self.social_graph[i][j]
-                    self.social_graph[i].remove(neighbor)
-                    self.social_graph[neighbor].remove(i)
-                    new_neighbor = self.rng.choice([n for n in range(self.cfg.N) if n != i and n not in self.social_graph[i]])
-                    self.social_graph[i].append(new_neighbor)
-                    self.social_graph[new_neighbor].append(i)
+        """Build a deterministic simple undirected graph in the requested mode."""
+        n = self.cfg.N
+        adjacency = {i: set() for i in range(n)}
+
+        def add_edge(a: int, b: int) -> None:
+            if a != b:
+                adjacency[a].add(b)
+                adjacency[b].add(a)
+
+        mode = self.cfg.social_network
+        if mode == "random":
+            # Erdos-Renyi graph with social_k as the target expected degree.
+            probability = clamp(self.cfg.social_k / max(1, n - 1), 0.0, 1.0)
+            for i in range(n):
+                for j in range(i + 1, n):
+                    if self.rng.random() < probability:
+                        add_edge(i, j)
+        elif mode == "small_world":
+            # Watts-Strogatz ring lattice, then rewire each clockwise edge once.
+            degree = min(max(0, self.cfg.social_k), max(0, n - 1))
+            degree -= degree % 2
+            clockwise_edges = []
+            for i in range(n):
+                for offset in range(1, degree // 2 + 1):
+                    neighbor = (i + offset) % n
+                    add_edge(i, neighbor)
+                    clockwise_edges.append((i, neighbor))
+            for i, neighbor in clockwise_edges:
+                if self.rng.random() >= self.cfg.social_p:
+                    continue
+                adjacency[i].remove(neighbor)
+                adjacency[neighbor].remove(i)
+                candidates = [node for node in range(n) if node != i and node not in adjacency[i]]
+                if candidates:
+                    add_edge(i, self.rng.choice(candidates))
+                else:
+                    add_edge(i, neighbor)
+        elif mode == "preferential":
+            # Barabasi-Albert attachment; social_k is the target mean degree.
+            attachments = min(max(0, self.cfg.social_k // 2), max(0, n - 1))
+            seed_size = min(n, attachments + 1)
+            for i in range(seed_size):
+                for j in range(i + 1, seed_size):
+                    add_edge(i, j)
+            for node in range(seed_size, n):
+                for _ in range(min(attachments, node)):
+                    candidates = [other for other in range(node) if other not in adjacency[node]]
+                    if not candidates:
+                        break
+                    weights = [len(adjacency[other]) for other in candidates]
+                    # A zero-degree seed (possible when social_k == 0) is uniform.
+                    chosen = self.rng.choices(candidates, weights=weights if sum(weights) else None, k=1)[0]
+                    add_edge(node, chosen)
+        else:
+            raise ValueError(f"unknown social_network mode: {mode!r}")
+
+        self.social_graph = {node: sorted(neighbors) for node, neighbors in adjacency.items()}
 
     def _select_hearers(self, speaker: Agent) -> List[Agent]:
         neighbors = self.social_graph.get(speaker.id, [])
@@ -480,14 +544,16 @@ class SwarmKernel:
         return {k: v[k] / n for k in AXES}
 
     def interact(self, speaker: Agent, hearers: List[Agent], ctx: Context, msg: List[str]) -> bool:
-        # Apply sensory channel projections for each hearer
-        preds = []
+        # Each hearer compares its noisy observation and interpretation in the
+        # same channel-projected semantic space.  Message interpretation itself
+        # receives no channel noise.
+        similarities = []
         for h in hearers:
-            projected_ctx = h.project_context(ctx.vec, self.cfg.channel_noise)
-            pred = self.interpret(h, msg)
-            preds.append(pred)
-        
-        sim = statistics.mean(cosine(ctx.vec, p) for p in preds)
+            observed_ctx = h.project_context(ctx.vec, self.cfg.channel_noise, self.rng)
+            interpreted_msg = h.project_context(self.interpret(h, msg))
+            similarities.append(cosine(observed_ctx, interpreted_msg))
+
+        sim = statistics.mean(similarities)
         thresh = self.cfg.base_success_thresh + (self.cfg.ritual_bonus if self.world.ritual_frame else 0.0)
         return sim >= thresh
 
@@ -495,7 +561,7 @@ class SwarmKernel:
     def learn_from(self, agent: Agent, msg: List[str], ctx: Context, success: bool):
         lr = self.cfg.learning_rate if success else -self.cfg.penalty_rate
         # Apply agent's sensory projection to context for learning
-        projected_ctx = agent.project_context(ctx.vec, self.cfg.channel_noise)
+        projected_ctx = agent.project_context(ctx.vec, self.cfg.channel_noise, self.rng)
         # Blend projected context with agent belief for learning target
         blend_weight = 0.2  # how much belief influences learning
         ctx_blend = {k: (1-blend_weight)*projected_ctx[k] + blend_weight*agent.belief[k] for k in AXES}
@@ -516,77 +582,147 @@ class SwarmKernel:
             a.w = clamp(a.w * (1.0 + delta), 0.1, 10.0)
 
     # ---------- clustering ---------- #
-    def _update_clusters(self):
-        # Coercion widens the absorption radius (§4.1: basin widening)
-        effective_threshold = self.cfg.cluster_threshold + 0.3 * self.cfg.coercion
-        self.centroids = []
-        self.clusters = []
+    _FUSION_DISTANCE = 0.15
 
+    def _agent_by_id(self) -> Dict[int, Agent]:
+        return {agent.id: agent for agent in self.agents}
+
+    def _centroid(self, cluster: List[int]) -> Dict[str, float]:
+        """Return the prestige-weighted centroid for a membership set."""
+        agents = self._agent_by_id()
+        centroid = {k: 0.0 for k in AXES}
+        total_w = 0.0
+        for agent_id in cluster:
+            weight = agents[agent_id].w
+            add_scaled(centroid, agents[agent_id].belief, weight)
+            total_w += weight
+        return scale(centroid, 1.0 / (total_w or len(cluster)))
+
+    def _threshold_components(self) -> List[List[int]]:
+        """Connected components of the fixed threshold graph.
+
+        An undirected edge joins every pair whose cosine distance is below
+        ``cluster_threshold``.  Components are therefore invariant to storage
+        order (unlike the former greedy centroid assignment).
+        """
+        agents = self._agent_by_id()
+        ids = sorted(agents)
+        adjacent = {aid: set() for aid in ids}
+        for offset, aid in enumerate(ids):
+            for bid in ids[offset + 1:]:
+                if 1 - cosine(agents[aid].belief, agents[bid].belief) < self.cfg.cluster_threshold:
+                    adjacent[aid].add(bid)
+                    adjacent[bid].add(aid)
+        components = []
+        unseen = set(ids)
+        while unseen:
+            start = min(unseen)
+            stack, component = [start], []
+            unseen.remove(start)
+            while stack:
+                aid = stack.pop()
+                component.append(aid)
+                for neighbor in sorted(adjacent[aid], reverse=True):
+                    if neighbor in unseen:
+                        unseen.remove(neighbor)
+                        stack.append(neighbor)
+            components.append(sorted(component))
+        return components
+
+    def _stable_labels(self, clusters: List[List[int]]) -> List[int]:
+        """Match new components to old labels by maximum overlap, deterministically."""
+        prior = self.cluster_labels
+        assigned_clusters, assigned_labels = set(), set()
+        candidates = []
+        for index, cluster in enumerate(clusters):
+            overlaps = Counter(prior[aid] for aid in cluster if aid in prior)
+            for label, count in overlaps.items():
+                candidates.append((-count, label, cluster[0], index))
+        for _, label, _, index in sorted(candidates):
+            if index not in assigned_clusters and label not in assigned_labels:
+                assigned_clusters.add(index)
+                assigned_labels.add(label)
+        labels: List[Optional[int]] = [None] * len(clusters)
+        for _, label, _, index in sorted(candidates):
+            if index in assigned_clusters and labels[index] is None:
+                labels[index] = label
+        for index in range(len(clusters)):
+            if labels[index] is None:
+                labels[index] = self._next_cluster_label
+                self._next_cluster_label += 1
+        return [label for label in labels if label is not None]
+
+    def _recent_cross_cluster_exchange(self, first: int, second: int,
+                                       current: Dict[int, int]) -> int:
+        """Count A↔B agent label transitions in the latest epoch boundaries.
+
+        A transition is counted when the same agent belonged to label A at one
+        persisted cluster epoch and label B at the next (or vice versa).  The
+        tentative current membership is included, so a move detected this epoch
+        can enable fusion; no such moves means exchange is exactly zero.
+        """
+        window = max(0, self.cfg.exchange_window)
+        snapshots = (self.cluster_history[-window:] if window else []) + [current]
+        exchange = 0
+        for older, newer in zip(snapshots, snapshots[1:]):
+            for aid in set(older).intersection(newer):
+                if (older[aid], newer[aid]) in ((first, second), (second, first)):
+                    exchange += 1
+        return exchange
+
+    def _set_cluster_state(self, clusters: List[List[int]], labels: List[int],
+                           record_history: bool = True) -> None:
+        ordered = sorted(zip((sorted(c) for c in clusters), labels), key=lambda item: item[0][0])
+        self.clusters = [cluster for cluster, _ in ordered]
+        labels = [label for _, label in ordered]
+        self.centroids = [self._centroid(cluster) for cluster in self.clusters]
+        self.cluster_labels = {aid: label for cluster, label in zip(self.clusters, labels) for aid in cluster}
         for agent in self.agents:
-            if not self.centroids:
-                self.centroids.append(agent.belief.copy())
-                self.clusters.append([agent.id])
-                continue
+            agent.cluster_label = self.cluster_labels.get(agent.id)
+        if record_history:
+            self.cluster_history.append(dict(self.cluster_labels))
 
-            distances = [1 - cosine(agent.belief, c) for c in self.centroids]
-            min_dist = min(distances)
-            best_idx = distances.index(min_dist)
+    def _update_clusters(self):
+        # Fixed threshold connected components, followed by deterministic label
+        # matching and exchange-gated fusion.  Coercion never enters this path.
+        clusters = self._threshold_components()
+        labels = self._stable_labels(clusters)
+        centroids = [self._centroid(cluster) for cluster in clusters]
 
-            if min_dist < effective_threshold:
-                self.clusters[best_idx].append(agent.id)
-            else:
-                self.centroids.append(agent.belief.copy())
-                self.clusters.append([agent.id])
-
-        # recalculate centroids (prestige-weighted per Definition 5)
-        new_centroids = []
-        new_clusters = []
-        for i, cluster in enumerate(self.clusters):
-            if not cluster:
-                continue
-            centroid = {k: 0.0 for k in AXES}
-            total_w = 0.0
-            for agent_id in cluster:
-                w = self.agents[agent_id].w
-                add_scaled(centroid, self.agents[agent_id].belief, w)
-                total_w += w
-            if total_w > 0:
-                new_centroids.append(scale(centroid, 1.0 / total_w))
-            else:
-                new_centroids.append(scale(centroid, 1.0 / len(cluster)))
-            new_clusters.append(cluster)
-
-        # Fusion (§3.1): merge nearby centroids under coercion
-        merge_dist = 0.15 + 0.35 * self.cfg.coercion
         merged = True
         while merged:
             merged = False
-            for i in range(len(new_centroids)):
-                for j in range(i + 1, len(new_centroids)):
-                    if 1 - cosine(new_centroids[i], new_centroids[j]) < merge_dist:
-                        combined = new_clusters[i] + new_clusters[j]
-                        centroid = {k: 0.0 for k in AXES}
-                        total_w = 0.0
-                        for agent_id in combined:
-                            w = self.agents[agent_id].w
-                            add_scaled(centroid, self.agents[agent_id].belief, w)
-                            total_w += w
-                        if total_w > 0:
-                            new_centroids[i] = scale(centroid, 1.0 / total_w)
-                        new_clusters[i] = combined
-                        del new_centroids[j]
-                        del new_clusters[j]
-                        merged = True
-                        break
-                if merged:
-                    break
+            current = {aid: label for cluster, label in zip(clusters, labels) for aid in cluster}
+            choices = []
+            for i in range(len(clusters)):
+                for j in range(i + 1, len(clusters)):
+                    if 1 - cosine(centroids[i], centroids[j]) < self._FUSION_DISTANCE:
+                        exchange = self._recent_cross_cluster_exchange(labels[i], labels[j], current)
+                        # A threshold of zero may be useful for experiments,
+                        # but it must never turn absent exchange into fusion.
+                        if exchange > 0 and exchange >= self.cfg.exchange_threshold:
+                            choices.append((min(labels[i], labels[j]), max(labels[i], labels[j]), i, j))
+            if choices:
+                _, _, i, j = min(choices)
+                clusters[i] = sorted(clusters[i] + clusters[j])
+                # The lower existing label deterministically survives fusion.
+                labels[i] = min(labels[i], labels[j])
+                centroids[i] = self._centroid(clusters[i])
+                del clusters[j], labels[j], centroids[j]
+                merged = True
 
-        self.centroids = new_centroids
-        self.clusters = new_clusters
+        self._set_cluster_state(clusters, labels)
 
     # ---------- mutation & drift ---------- #
+    def mutate_belief(self, agent: Agent):
+        """Apply continuous, kernel-seeded Gaussian belief noise and renormalize."""
+        if self.cfg.mutation_rate <= 0.0:
+            return
+        agent.belief = jitter_vec(agent.belief, self.rng, self.cfg.mutation_rate)
+
     def mutate_agent(self, agent: Agent):
-        if self.rng.random() >= self.cfg.mutation_rate:
+        """Apply symbolic-form mutation independently of belief mutation."""
+        if self.rng.random() >= self.cfg.form_mutation_rate:
             return
         forms = list(agent.known_forms())
         if not forms:
@@ -637,7 +773,11 @@ class SwarmKernel:
 
         fission_events = []
         new_centroids = list(self.centroids)
-        new_clusters = list(self.clusters)
+        new_clusters = [list(cluster) for cluster in self.clusters]
+        # Keep one parent identity after a split; its deterministic sibling gets
+        # a fresh identity.  History is replaced below for this same epoch.
+        labels = [self.cluster_labels[cluster[0]] for cluster in new_clusters]
+        agents = self._agent_by_id()
 
         i = 0
         while i < len(new_clusters):
@@ -654,7 +794,7 @@ class SwarmKernel:
             max_w = 0.0
             sum_w = 0.0
             for aid in cluster:
-                a = self.agents[aid]
+                a = agents[aid]
                 w = a.w
                 dist_sq = sum((a.belief[k] - centroid[k]) ** 2 for k in AXES)
                 weighted_var += w * dist_sq
@@ -680,19 +820,19 @@ class SwarmKernel:
                 a1_id, a2_id = cluster[0], cluster[-1]
                 for ci in range(len(cluster)):
                     for cj in range(ci + 1, len(cluster)):
-                        d = 1 - cosine(self.agents[cluster[ci]].belief,
-                                       self.agents[cluster[cj]].belief)
+                        d = 1 - cosine(agents[cluster[ci]].belief,
+                                       agents[cluster[cj]].belief)
                         if d > max_dist:
                             max_dist = d
                             a1_id, a2_id = cluster[ci], cluster[cj]
 
                 # Split: assign each agent to the nearer seed
-                seed1 = dict(self.agents[a1_id].belief)
-                seed2 = dict(self.agents[a2_id].belief)
+                seed1 = dict(agents[a1_id].belief)
+                seed2 = dict(agents[a2_id].belief)
                 group1, group2 = [], []
                 for aid in cluster:
-                    d1 = 1 - cosine(self.agents[aid].belief, seed1)
-                    d2 = 1 - cosine(self.agents[aid].belief, seed2)
+                    d1 = 1 - cosine(agents[aid].belief, seed1)
+                    d2 = 1 - cosine(agents[aid].belief, seed2)
                     if d1 <= d2:
                         group1.append(aid)
                     else:
@@ -703,23 +843,29 @@ class SwarmKernel:
                     c1 = {k: 0.0 for k in AXES}
                     w1 = 0.0
                     for aid in group1:
-                        add_scaled(c1, self.agents[aid].belief, self.agents[aid].w)
-                        w1 += self.agents[aid].w
+                        add_scaled(c1, agents[aid].belief, agents[aid].w)
+                        w1 += agents[aid].w
                     if w1 > 0:
                         c1 = scale(c1, 1.0 / w1)
 
                     c2 = {k: 0.0 for k in AXES}
                     w2 = 0.0
                     for aid in group2:
-                        add_scaled(c2, self.agents[aid].belief, self.agents[aid].w)
-                        w2 += self.agents[aid].w
+                        add_scaled(c2, agents[aid].belief, agents[aid].w)
+                        w2 += agents[aid].w
                     if w2 > 0:
                         c2 = scale(c2, 1.0 / w2)
 
+                    # The child containing the smallest id retains the parent
+                    # label, independent of incidental list/seed ordering.
+                    if min(group2) < min(group1):
+                        group1, group2, c1, c2 = group2, group1, c2, c1
                     new_clusters[i] = group1
                     new_centroids[i] = c1
                     new_clusters.append(group2)
                     new_centroids.append(c2)
+                    labels.append(self._next_cluster_label)
+                    self._next_cluster_label += 1
 
                     fission_events.append({
                         "t": self.t,
@@ -732,40 +878,99 @@ class SwarmKernel:
 
             i += 1
 
-        self.clusters = new_clusters
-        self.centroids = new_centroids
+        # _update_clusters already recorded this epoch's pre-fission state.
+        # Replace it with the final membership so future exchange sees only
+        # completed cluster epochs; direct calls create their first snapshot.
+        self._set_cluster_state(new_clusters, labels, record_history=False)
+        if self.cluster_history:
+            self.cluster_history[-1] = dict(self.cluster_labels)
+        else:
+            self.cluster_history.append(dict(self.cluster_labels))
         return fission_events
 
     # ---------- generation / transmission ---------- #
     def generation_boundary(self) -> bool:
         return (self.t > 0 and self.t % self.cfg.steps_per_generation == 0)
 
-    def transmit(self):
-        # pick mentors weighted by prestige
-        weights = [a.w for a in self.agents]
-        total = sum(weights) or 1.0
-        probs = [w / total for w in weights]
-        mentors = self.rng.choices(self.agents, weights=probs, k=self.cfg.generation_mix_k)
+    def _sample_generation_mentors(self) -> List[Agent]:
+        """Draw one child's distinct mentors, without replacement, by prestige.
 
+        Repeating this draw for every child is intentional: there is no
+        generation-wide parent pool.  Removing a selected mentor also makes
+        ``generation_mix_k`` a genuine mentor-set size rather than allowing a
+        single parent to occupy several slots in one child's average.
+        """
+        available = list(self.agents)
+        mentor_count = min(max(1, self.cfg.generation_mix_k), len(available))
+        mentors: List[Agent] = []
+        for _ in range(mentor_count):
+            weights = [agent.w for agent in available]
+            mentor = self.rng.choices(available, weights=weights, k=1)[0]
+            mentors.append(mentor)
+            available.remove(mentor)
+        return mentors
+
+    @staticmethod
+    def _normalized_mentor_average(mentors: List[Agent]) -> Dict[str, float]:
+        average = {
+            axis: sum(mentor.belief[axis] for mentor in mentors) / len(mentors)
+            for axis in AXES
+        }
+        magnitude = norm(average)
+        # Exact cancellation is possible for antipodal parent beliefs.  Use a
+        # selected parent rather than introduce a non-inherited random belief.
+        if magnitude == 0.0:
+            return dict(mentors[0].belief)
+        return scale(average, 1.0 / magnitude)
+
+    @staticmethod
+    def _channel_mentor(mentors: List[Agent]) -> Agent:
+        """Choose a channel donor deterministically from a child's mentors."""
+        return min(mentors, key=lambda mentor: (-mentor.w, mentor.id))
+
+    def transmit(self):
+        """Replace every agent with a prestige-selected, parent-derived child."""
         new_agents: List[Agent] = []
+        mentor_provenance: Dict[int, Tuple[int, ...]] = {}
         for i in range(self.cfg.N):
-            belief = rnd_unit_vec(self.rng)
-            na = Agent(id=i, belief=belief, w=1.0)
-            # merge a subset of mentors' associations/frequencies
-            for m in mentors:
-                items = list(m.assoc.items())
+            mentors = self._sample_generation_mentors()
+            mentor_provenance[i] = tuple(mentor.id for mentor in mentors)
+            na = Agent(
+                id=i,
+                belief=self._normalized_mentor_average(mentors),
+                # A new generation starts with baseline prestige, never a
+                # residual parent value.
+                w=1.0,
+                sensory_channels=list(self._channel_mentor(mentors).sensory_channels),
+            )
+            # Preserve the existing lexicon-mixing intent, but draw from this
+            # child's own mentor set rather than a generation-wide selection.
+            for mentor in mentors:
+                items = list(mentor.assoc.items())
                 if items:
                     sample_k = min(10, len(items))
                     for form, vec in self.rng.sample(items, k=sample_k):
                         if form not in na.assoc:
                             na.assoc[form] = dict(vec)
-                            na.freq[form] += m.freq[form]
-            # ensure base theonyms exist
-            for name in set(THEONYMS):
+                            na.freq[form] += mentor.freq[form]
+            # Ensure base forms remain available after inherited mixing.
+            for name in THEONYMS:
                 na.assoc.setdefault(name, rnd_unit_vec(self.rng))
             new_agents.append(na)
+
         self.agents = new_agents
-        self.pref_form = {a.id: None for a in self.agents}
+        self.last_transmission_mentors = mentor_provenance
+        self.pref_form = {agent.id: None for agent in self.agents}
+        # Parent graph edges and cluster identities do not describe children.
+        self._build_social_network()
+        self.clusters = []
+        self.centroids = []
+        self.cluster_labels = {}
+        self.cluster_history = []
+        self._next_cluster_label = 0
+        # Establish fresh labels for the new population rather than retaining
+        # memberships that belonged to identically numbered parents.
+        self._update_clusters()
         self.gen += 1
 
     # ---------- metrics ---------- #
@@ -889,8 +1094,10 @@ class SwarmKernel:
         m_emb = self.interpret(speaker, msg)
         self.ctx_window.append((ctx.vec, m_emb))
 
-        # mutations
-        for a in [speaker] + hearers:
+        # Mutate each unique participant once: belief noise and form changes are separate.
+        participants = {a.id: a for a in [speaker] + hearers}.values()
+        for a in participants:
+            self.mutate_belief(a)
             self.mutate_agent(a)
 
         # metrics
@@ -902,27 +1109,9 @@ class SwarmKernel:
         if prophet_event:
             self.log.setdefault("prophets", []).append(prophet_event)
 
-        # clustering + attractor deepening (Definition 4a, §4.1)
+        # clustering and fission / schism (Definition 10, §3.2)
         if self.t % self.cfg.cluster_update_freq == 0:
             self._update_clusters()
-            # Attractor deepening: agents drift toward their cluster centroid
-            # Pull strength is proportional to coercion γ (§4.1)
-            if self.cfg.coercion > 0 and self.centroids:
-                eta_base = 0.05 * self.cfg.coercion  # susceptibility scales with γ
-                for ci, cluster in enumerate(self.clusters):
-                    if ci >= len(self.centroids):
-                        break
-                    centroid = self.centroids[ci]
-                    for agent_id in cluster:
-                        a = self.agents[agent_id]
-                        # Susceptibility: lower-prestige agents are pulled more
-                        eta = eta_base * (1.0 / (a.w + 0.1))
-                        eta = min(eta, 0.3)  # cap to prevent instability
-                        for k in AXES:
-                            a.belief[k] += eta * (centroid[k] - a.belief[k])
-                        # Renormalize
-                        n = norm(a.belief) or 1.0
-                        a.belief = {k: a.belief[k] / n for k in AXES}
 
             # fission / schism (Definition 10, §3.2)
             fission_events = self.maybe_fission()
