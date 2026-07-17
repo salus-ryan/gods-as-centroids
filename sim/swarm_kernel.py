@@ -148,7 +148,9 @@ class Config:
     social_k: int = 4                      # small-world graph param
     social_p: float = 0.1                  # small-world graph param
     cluster_update_freq: int = 100         # steps between clustering updates
-    cluster_threshold: float = 0.4         # distance to form new cluster
+    cluster_threshold: float = 0.4         # cosine distance edge threshold for connected-component clustering
+    exchange_window: int = 3               # cluster epochs retained when measuring cross-cluster membership exchange
+    exchange_threshold: int = 1            # minimum agent label transitions between a pair required before fusion
     # Prophet events (Definition 11, §3.3)
     prophet_rate: float = 0.0                  # probability of prophet event per step
     prophet_pull_fraction: float = 0.15        # fraction of most-similar agents pulled
@@ -250,6 +252,8 @@ class Agent:
     freq: Counter = field(default_factory=Counter)
     # Accessibility Corollary: sensory channel restrictions
     sensory_channels: List[str] = field(default_factory=lambda: list(SENSORY_CHANNELS.keys()))
+    # Persistent identity assigned at a cluster epoch; None before the first one.
+    cluster_label: Optional[int] = None
     
     def project_context(
         self,
@@ -367,6 +371,11 @@ class SwarmKernel:
         self.log: Dict[str, List[Tuple[int, float]]] = defaultdict(list)
         self.clusters: List[List[int]] = []
         self.centroids: List[Dict[str, float]] = []
+        # Snapshots are final cluster memberships at each cluster epoch.  They
+        # make exchange observable rather than inferred from centroid geometry.
+        self.cluster_labels: Dict[int, int] = {}
+        self.cluster_history: List[Dict[int, int]] = []
+        self._next_cluster_label = 0
 
     # ---------- initialization ---------- #
     def _init_agents(self):
@@ -570,73 +579,136 @@ class SwarmKernel:
             a.w = clamp(a.w * (1.0 + delta), 0.1, 10.0)
 
     # ---------- clustering ---------- #
-    def _update_clusters(self):
-        # Clustering uses the configured, coercion-independent threshold.
-        effective_threshold = self.cfg.cluster_threshold
-        self.centroids = []
-        self.clusters = []
+    _FUSION_DISTANCE = 0.15
 
+    def _agent_by_id(self) -> Dict[int, Agent]:
+        return {agent.id: agent for agent in self.agents}
+
+    def _centroid(self, cluster: List[int]) -> Dict[str, float]:
+        """Return the prestige-weighted centroid for a membership set."""
+        agents = self._agent_by_id()
+        centroid = {k: 0.0 for k in AXES}
+        total_w = 0.0
+        for agent_id in cluster:
+            weight = agents[agent_id].w
+            add_scaled(centroid, agents[agent_id].belief, weight)
+            total_w += weight
+        return scale(centroid, 1.0 / (total_w or len(cluster)))
+
+    def _threshold_components(self) -> List[List[int]]:
+        """Connected components of the fixed threshold graph.
+
+        An undirected edge joins every pair whose cosine distance is below
+        ``cluster_threshold``.  Components are therefore invariant to storage
+        order (unlike the former greedy centroid assignment).
+        """
+        agents = self._agent_by_id()
+        ids = sorted(agents)
+        adjacent = {aid: set() for aid in ids}
+        for offset, aid in enumerate(ids):
+            for bid in ids[offset + 1:]:
+                if 1 - cosine(agents[aid].belief, agents[bid].belief) < self.cfg.cluster_threshold:
+                    adjacent[aid].add(bid)
+                    adjacent[bid].add(aid)
+        components = []
+        unseen = set(ids)
+        while unseen:
+            start = min(unseen)
+            stack, component = [start], []
+            unseen.remove(start)
+            while stack:
+                aid = stack.pop()
+                component.append(aid)
+                for neighbor in sorted(adjacent[aid], reverse=True):
+                    if neighbor in unseen:
+                        unseen.remove(neighbor)
+                        stack.append(neighbor)
+            components.append(sorted(component))
+        return components
+
+    def _stable_labels(self, clusters: List[List[int]]) -> List[int]:
+        """Match new components to old labels by maximum overlap, deterministically."""
+        prior = self.cluster_labels
+        assigned_clusters, assigned_labels = set(), set()
+        candidates = []
+        for index, cluster in enumerate(clusters):
+            overlaps = Counter(prior[aid] for aid in cluster if aid in prior)
+            for label, count in overlaps.items():
+                candidates.append((-count, label, cluster[0], index))
+        for _, label, _, index in sorted(candidates):
+            if index not in assigned_clusters and label not in assigned_labels:
+                assigned_clusters.add(index)
+                assigned_labels.add(label)
+        labels: List[Optional[int]] = [None] * len(clusters)
+        for _, label, _, index in sorted(candidates):
+            if index in assigned_clusters and labels[index] is None:
+                labels[index] = label
+        for index in range(len(clusters)):
+            if labels[index] is None:
+                labels[index] = self._next_cluster_label
+                self._next_cluster_label += 1
+        return [label for label in labels if label is not None]
+
+    def _recent_cross_cluster_exchange(self, first: int, second: int,
+                                       current: Dict[int, int]) -> int:
+        """Count A↔B agent label transitions in the latest epoch boundaries.
+
+        A transition is counted when the same agent belonged to label A at one
+        persisted cluster epoch and label B at the next (or vice versa).  The
+        tentative current membership is included, so a move detected this epoch
+        can enable fusion; no such moves means exchange is exactly zero.
+        """
+        window = max(0, self.cfg.exchange_window)
+        snapshots = (self.cluster_history[-window:] if window else []) + [current]
+        exchange = 0
+        for older, newer in zip(snapshots, snapshots[1:]):
+            for aid in set(older).intersection(newer):
+                if (older[aid], newer[aid]) in ((first, second), (second, first)):
+                    exchange += 1
+        return exchange
+
+    def _set_cluster_state(self, clusters: List[List[int]], labels: List[int],
+                           record_history: bool = True) -> None:
+        ordered = sorted(zip((sorted(c) for c in clusters), labels), key=lambda item: item[0][0])
+        self.clusters = [cluster for cluster, _ in ordered]
+        labels = [label for _, label in ordered]
+        self.centroids = [self._centroid(cluster) for cluster in self.clusters]
+        self.cluster_labels = {aid: label for cluster, label in zip(self.clusters, labels) for aid in cluster}
         for agent in self.agents:
-            if not self.centroids:
-                self.centroids.append(agent.belief.copy())
-                self.clusters.append([agent.id])
-                continue
+            agent.cluster_label = self.cluster_labels.get(agent.id)
+        if record_history:
+            self.cluster_history.append(dict(self.cluster_labels))
 
-            distances = [1 - cosine(agent.belief, c) for c in self.centroids]
-            min_dist = min(distances)
-            best_idx = distances.index(min_dist)
+    def _update_clusters(self):
+        # Fixed threshold connected components, followed by deterministic label
+        # matching and exchange-gated fusion.  Coercion never enters this path.
+        clusters = self._threshold_components()
+        labels = self._stable_labels(clusters)
+        centroids = [self._centroid(cluster) for cluster in clusters]
 
-            if min_dist < effective_threshold:
-                self.clusters[best_idx].append(agent.id)
-            else:
-                self.centroids.append(agent.belief.copy())
-                self.clusters.append([agent.id])
-
-        # recalculate centroids (prestige-weighted per Definition 5)
-        new_centroids = []
-        new_clusters = []
-        for i, cluster in enumerate(self.clusters):
-            if not cluster:
-                continue
-            centroid = {k: 0.0 for k in AXES}
-            total_w = 0.0
-            for agent_id in cluster:
-                w = self.agents[agent_id].w
-                add_scaled(centroid, self.agents[agent_id].belief, w)
-                total_w += w
-            if total_w > 0:
-                new_centroids.append(scale(centroid, 1.0 / total_w))
-            else:
-                new_centroids.append(scale(centroid, 1.0 / len(cluster)))
-            new_clusters.append(cluster)
-
-        # Fusion (§3.1): merge nearby centroids at a fixed base distance.
-        merge_dist = 0.15
         merged = True
         while merged:
             merged = False
-            for i in range(len(new_centroids)):
-                for j in range(i + 1, len(new_centroids)):
-                    if 1 - cosine(new_centroids[i], new_centroids[j]) < merge_dist:
-                        combined = new_clusters[i] + new_clusters[j]
-                        centroid = {k: 0.0 for k in AXES}
-                        total_w = 0.0
-                        for agent_id in combined:
-                            w = self.agents[agent_id].w
-                            add_scaled(centroid, self.agents[agent_id].belief, w)
-                            total_w += w
-                        if total_w > 0:
-                            new_centroids[i] = scale(centroid, 1.0 / total_w)
-                        new_clusters[i] = combined
-                        del new_centroids[j]
-                        del new_clusters[j]
-                        merged = True
-                        break
-                if merged:
-                    break
+            current = {aid: label for cluster, label in zip(clusters, labels) for aid in cluster}
+            choices = []
+            for i in range(len(clusters)):
+                for j in range(i + 1, len(clusters)):
+                    if 1 - cosine(centroids[i], centroids[j]) < self._FUSION_DISTANCE:
+                        exchange = self._recent_cross_cluster_exchange(labels[i], labels[j], current)
+                        # A threshold of zero may be useful for experiments,
+                        # but it must never turn absent exchange into fusion.
+                        if exchange > 0 and exchange >= self.cfg.exchange_threshold:
+                            choices.append((min(labels[i], labels[j]), max(labels[i], labels[j]), i, j))
+            if choices:
+                _, _, i, j = min(choices)
+                clusters[i] = sorted(clusters[i] + clusters[j])
+                # The lower existing label deterministically survives fusion.
+                labels[i] = min(labels[i], labels[j])
+                centroids[i] = self._centroid(clusters[i])
+                del clusters[j], labels[j], centroids[j]
+                merged = True
 
-        self.centroids = new_centroids
-        self.clusters = new_clusters
+        self._set_cluster_state(clusters, labels)
 
     # ---------- mutation & drift ---------- #
     def mutate_belief(self, agent: Agent):
@@ -698,7 +770,11 @@ class SwarmKernel:
 
         fission_events = []
         new_centroids = list(self.centroids)
-        new_clusters = list(self.clusters)
+        new_clusters = [list(cluster) for cluster in self.clusters]
+        # Keep one parent identity after a split; its deterministic sibling gets
+        # a fresh identity.  History is replaced below for this same epoch.
+        labels = [self.cluster_labels[cluster[0]] for cluster in new_clusters]
+        agents = self._agent_by_id()
 
         i = 0
         while i < len(new_clusters):
@@ -715,7 +791,7 @@ class SwarmKernel:
             max_w = 0.0
             sum_w = 0.0
             for aid in cluster:
-                a = self.agents[aid]
+                a = agents[aid]
                 w = a.w
                 dist_sq = sum((a.belief[k] - centroid[k]) ** 2 for k in AXES)
                 weighted_var += w * dist_sq
@@ -741,19 +817,19 @@ class SwarmKernel:
                 a1_id, a2_id = cluster[0], cluster[-1]
                 for ci in range(len(cluster)):
                     for cj in range(ci + 1, len(cluster)):
-                        d = 1 - cosine(self.agents[cluster[ci]].belief,
-                                       self.agents[cluster[cj]].belief)
+                        d = 1 - cosine(agents[cluster[ci]].belief,
+                                       agents[cluster[cj]].belief)
                         if d > max_dist:
                             max_dist = d
                             a1_id, a2_id = cluster[ci], cluster[cj]
 
                 # Split: assign each agent to the nearer seed
-                seed1 = dict(self.agents[a1_id].belief)
-                seed2 = dict(self.agents[a2_id].belief)
+                seed1 = dict(agents[a1_id].belief)
+                seed2 = dict(agents[a2_id].belief)
                 group1, group2 = [], []
                 for aid in cluster:
-                    d1 = 1 - cosine(self.agents[aid].belief, seed1)
-                    d2 = 1 - cosine(self.agents[aid].belief, seed2)
+                    d1 = 1 - cosine(agents[aid].belief, seed1)
+                    d2 = 1 - cosine(agents[aid].belief, seed2)
                     if d1 <= d2:
                         group1.append(aid)
                     else:
@@ -764,23 +840,29 @@ class SwarmKernel:
                     c1 = {k: 0.0 for k in AXES}
                     w1 = 0.0
                     for aid in group1:
-                        add_scaled(c1, self.agents[aid].belief, self.agents[aid].w)
-                        w1 += self.agents[aid].w
+                        add_scaled(c1, agents[aid].belief, agents[aid].w)
+                        w1 += agents[aid].w
                     if w1 > 0:
                         c1 = scale(c1, 1.0 / w1)
 
                     c2 = {k: 0.0 for k in AXES}
                     w2 = 0.0
                     for aid in group2:
-                        add_scaled(c2, self.agents[aid].belief, self.agents[aid].w)
-                        w2 += self.agents[aid].w
+                        add_scaled(c2, agents[aid].belief, agents[aid].w)
+                        w2 += agents[aid].w
                     if w2 > 0:
                         c2 = scale(c2, 1.0 / w2)
 
+                    # The child containing the smallest id retains the parent
+                    # label, independent of incidental list/seed ordering.
+                    if min(group2) < min(group1):
+                        group1, group2, c1, c2 = group2, group1, c2, c1
                     new_clusters[i] = group1
                     new_centroids[i] = c1
                     new_clusters.append(group2)
                     new_centroids.append(c2)
+                    labels.append(self._next_cluster_label)
+                    self._next_cluster_label += 1
 
                     fission_events.append({
                         "t": self.t,
@@ -793,8 +875,14 @@ class SwarmKernel:
 
             i += 1
 
-        self.clusters = new_clusters
-        self.centroids = new_centroids
+        # _update_clusters already recorded this epoch's pre-fission state.
+        # Replace it with the final membership so future exchange sees only
+        # completed cluster epochs; direct calls create their first snapshot.
+        self._set_cluster_state(new_clusters, labels, record_history=False)
+        if self.cluster_history:
+            self.cluster_history[-1] = dict(self.cluster_labels)
+        else:
+            self.cluster_history.append(dict(self.cluster_labels))
         return fission_events
 
     # ---------- generation / transmission ---------- #

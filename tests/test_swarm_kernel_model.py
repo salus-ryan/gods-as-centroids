@@ -145,6 +145,75 @@ def test_clustering_is_identical_for_equal_states_at_zero_and_full_coercion():
     assert kernels[1].centroids == kernels[0].centroids
 
 
+def _nearby_cluster_beliefs(kernel, memberships):
+    """Set two internally identical, externally close (but disconnected) groups."""
+    left = _axis_belief("authority")
+    right = {
+        axis: (0.95 if axis == "authority" else math.sqrt(1 - 0.95 ** 2)
+               if axis == "justice" else 0.0)
+        for axis in AXES
+    }
+    for aid in memberships[0]:
+        next(agent for agent in kernel.agents if agent.id == aid).belief = dict(left)
+    for aid in memberships[1]:
+        next(agent for agent in kernel.agents if agent.id == aid).belief = dict(right)
+
+
+def test_threshold_components_are_invariant_to_agent_storage_order():
+    cfg = Config(N=6, seed=31, use_deity_priors=False, cluster_threshold=0.05,
+                 fission_min_cluster_size=99)
+    ordered, permuted = SwarmKernel(cfg), SwarmKernel(cfg)
+    beliefs = {
+        0: _axis_belief("authority"), 1: _axis_belief("authority"),
+        2: _axis_belief("justice"), 3: _axis_belief("justice"),
+        4: _axis_belief("nature"), 5: _axis_belief("nature"),
+    }
+    for kernel in (ordered, permuted):
+        for agent in kernel.agents:
+            agent.belief = dict(beliefs[agent.id])
+    permuted.agents.reverse()
+    ordered._update_clusters()
+    permuted._update_clusters()
+    partition = lambda kernel: {frozenset(cluster) for cluster in kernel.clusters}
+    assert partition(ordered) == partition(permuted)
+
+
+def test_proximity_without_membership_exchange_cannot_fuse():
+    kernel = SwarmKernel(Config(N=4, seed=32, use_deity_priors=False,
+                                cluster_threshold=0.01, exchange_window=3,
+                                exchange_threshold=1, fission_min_cluster_size=99))
+    _nearby_cluster_beliefs(kernel, ([0, 1], [2, 3]))
+    kernel._update_clusters()
+    assert len(kernel.clusters) == 2
+    assert kernel._recent_cross_cluster_exchange(0, 1, kernel.cluster_labels) == 0
+
+
+def test_recent_membership_exchange_plus_proximity_fuses():
+    kernel = SwarmKernel(Config(N=4, seed=33, use_deity_priors=False,
+                                cluster_threshold=0.01, exchange_window=3,
+                                exchange_threshold=1, fission_min_cluster_size=99))
+    _nearby_cluster_beliefs(kernel, ([0, 1], [2, 3]))
+    kernel._update_clusters()
+    # Move one member each way.  The two threshold components stay separate,
+    # but their persisted labels now have two cross-cluster transitions.
+    _nearby_cluster_beliefs(kernel, ([0, 2], [1, 3]))
+    kernel._update_clusters()
+    assert len(kernel.clusters) == 1
+    assert set(kernel.clusters[0]) == {0, 1, 2, 3}
+
+
+def test_cluster_labels_and_history_persist_across_unchanged_epochs():
+    kernel = SwarmKernel(Config(N=4, seed=34, use_deity_priors=False,
+                                cluster_threshold=0.01, fission_min_cluster_size=99))
+    _nearby_cluster_beliefs(kernel, ([0, 1], [2, 3]))
+    kernel._update_clusters()
+    first_labels = dict(kernel.cluster_labels)
+    kernel._update_clusters()
+    assert kernel.cluster_labels == first_labels
+    assert kernel.cluster_history[-2:] == [first_labels, first_labels]
+    assert {agent.id: agent.cluster_label for agent in kernel.agents} == first_labels
+
+
 def test_coercion_deterministically_weights_contact_selection_by_homophily():
     def contact_trace(coercion):
         kernel = SwarmKernel(Config(N=4, seed=29, use_deity_priors=False, coercion=coercion))
