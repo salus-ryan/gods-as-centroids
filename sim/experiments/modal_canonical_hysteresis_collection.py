@@ -204,7 +204,9 @@ if modal is not None:
         replicates: int = DEFAULT_REPLICATES,
         steps_per_gamma: int = DEFAULT_STEPS_PER_GAMMA,
         seed: int = DEFAULT_SEED,
-        gammas: str | list[float] = list(DEFAULT_GAMMA_SCHEDULE),
+        # Modal CLI exposes remote function arguments, so keep this a
+        # CLI-serializable comma-separated string rather than a union type.
+        gammas: str = ",".join(str(value) for value in DEFAULT_GAMMA_SCHEDULE),
     ) -> dict[str, Any]:
         """Persist raw evidence in the named Volume and return artifact metadata."""
         from sim.experiments.hysteresis_runner import HysteresisRunner as RemoteHysteresisRunner
