@@ -7,7 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "sim"))
 
-from swarm_kernel import AXES, Config, SwarmKernel, norm, rnd_unit_vec
+from swarm_kernel import AXES, Config, Context, SwarmKernel, norm, rnd_unit_vec
 
 
 def _beliefs(kernel):
@@ -16,6 +16,37 @@ def _beliefs(kernel):
 
 def _graph_edges(kernel):
     return tuple((node, tuple(neighbors)) for node, neighbors in kernel.social_graph.items())
+
+
+def test_restricted_success_ignores_an_inaccessible_axis():
+    kernel = SwarmKernel(Config(N=2, seed=123, base_success_thresh=0.8, channel_noise=0.0))
+    speaker, hearer = kernel.agents
+    hearer.sensory_channels = ["sight"]
+    hearer.assoc["signal"] = {
+        axis: (1.0 if axis == "nature" else -10.0 if axis == "authority" else 0.0)
+        for axis in AXES
+    }
+    ctx = Context("forage", "hunter", "forest", "dawn", {
+        axis: 1.0 if axis == "nature" else 0.0 for axis in AXES
+    })
+
+    # Authority is inaccessible through sight, so the projected message and
+    # context are identical despite their incompatible full-space vectors.
+    assert kernel.interact(speaker, [hearer], ctx, ["signal"])
+
+
+def test_unrestricted_success_uses_full_space_comparison():
+    kernel = SwarmKernel(Config(N=2, seed=123, base_success_thresh=0.8, channel_noise=0.0))
+    speaker, hearer = kernel.agents
+    hearer.assoc["signal"] = {
+        axis: (1.0 if axis == "nature" else -10.0 if axis == "authority" else 0.0)
+        for axis in AXES
+    }
+    ctx = Context("forage", "hunter", "forest", "dawn", {
+        axis: 1.0 if axis == "nature" else 0.0 for axis in AXES
+    })
+
+    assert not kernel.interact(speaker, [hearer], ctx, ["signal"])
 
 
 def test_projection_noise_uses_kernel_rng_and_replays_deterministically():
@@ -27,11 +58,12 @@ def test_projection_noise_uses_kernel_rng_and_replays_deterministically():
         channel_noise=0.2,
     )
     first, second = SwarmKernel(cfg), SwarmKernel(cfg)
-    first.run(12)
+    first_successes = [first.step().success for _ in range(12)]
 
     # Module-level random state must not affect kernel trajectories.
     random.seed(99999)
-    second.run(12)
+    second_successes = [second.step().success for _ in range(12)]
+    assert first_successes == second_successes
     assert _beliefs(first) == _beliefs(second)
     assert first.tokens == second.tokens
 

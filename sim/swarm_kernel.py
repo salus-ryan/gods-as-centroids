@@ -257,36 +257,38 @@ class Agent:
         noise: float = 0.0,
         rng: Optional[random.Random] = None,
     ) -> Dict[str, float]:
-        """Project context through available sensory channels (φ_s mapping)"""
-        if len(self.sensory_channels) == len(SENSORY_CHANNELS):
-            # No restrictions - return full context
+        """Project a semantic vector through this agent's available channels."""
+        if set(self.sensory_channels) == set(SENSORY_CHANNELS):
+            # No restrictions - preserve the original full-space behavior.
             return context_vec.copy()
-        
-        # Restricted channels - project only through available modalities
+
+        # Restricted channels - project only through available modalities.
         projected = {k: 0.0 for k in AXES}
+        accessible_axes = set()
         channel_count = 0
-        
         for channel in self.sensory_channels:
             if channel in SENSORY_CHANNELS:
                 channel_axes = SENSORY_CHANNELS[channel]
+                accessible_axes.update(channel_axes)
                 for axis in channel_axes:
                     if axis in context_vec:
                         projected[axis] += context_vec[axis]
                         channel_count += 1
-        
-        # Normalize by number of available channels (b_i = 1/|S_i| * sum)
+
+        # Normalize by number of available channels (b_i = 1/|S_i| * sum).
         if channel_count > 0:
             for axis in projected:
                 projected[axis] /= len(self.sensory_channels)
-        
-        # Add channel noise if specified
+
+        # Noise belongs to the observed context, and cannot create inaccessible
+        # semantic dimensions.
         if noise > 0.0:
             if rng is None:
                 raise ValueError("projection noise requires a kernel-owned RNG")
-            for axis in projected:
+            for axis in accessible_axes:
                 projected[axis] += rng.gauss(0, noise)
-        
-        # Renormalize
+
+        # Renormalize.
         n = norm(projected) or 1.0
         return {k: projected[k] / n for k in AXES}
 
@@ -530,14 +532,16 @@ class SwarmKernel:
         return {k: v[k] / n for k in AXES}
 
     def interact(self, speaker: Agent, hearers: List[Agent], ctx: Context, msg: List[str]) -> bool:
-        # Apply sensory channel projections for each hearer
-        preds = []
+        # Each hearer compares its noisy observation and interpretation in the
+        # same channel-projected semantic space.  Message interpretation itself
+        # receives no channel noise.
+        similarities = []
         for h in hearers:
-            projected_ctx = h.project_context(ctx.vec, self.cfg.channel_noise, self.rng)
-            pred = self.interpret(h, msg)
-            preds.append(pred)
-        
-        sim = statistics.mean(cosine(ctx.vec, p) for p in preds)
+            observed_ctx = h.project_context(ctx.vec, self.cfg.channel_noise, self.rng)
+            interpreted_msg = h.project_context(self.interpret(h, msg))
+            similarities.append(cosine(observed_ctx, interpreted_msg))
+
+        sim = statistics.mean(similarities)
         thresh = self.cfg.base_success_thresh + (self.cfg.ritual_bonus if self.world.ritual_frame else 0.0)
         return sim >= thresh
 
