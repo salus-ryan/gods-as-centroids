@@ -7,7 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "sim"))
 
-from swarm_kernel import AXES, Config, Context, SwarmKernel, norm, rnd_unit_vec
+from swarm_kernel import AXES, SENSORY_CHANNELS, Config, Context, SwarmKernel, norm, rnd_unit_vec
 
 
 def _beliefs(kernel):
@@ -212,6 +212,52 @@ def test_cluster_labels_and_history_persist_across_unchanged_epochs():
     assert kernel.cluster_labels == first_labels
     assert kernel.cluster_history[-2:] == [first_labels, first_labels]
     assert {agent.id: agent.cluster_label for agent in kernel.agents} == first_labels
+
+
+def test_transmission_uses_each_childs_own_mentor_belief_average_and_resets_state():
+    kernel = SwarmKernel(Config(N=6, seed=202, use_deity_priors=False,
+                                generation_mix_k=2, social_network="random"))
+    channels = ["sight", "sound", "touch", "proprioception", "smell", "taste"]
+    parents = {agent.id: agent for agent in kernel.agents}
+    for agent in kernel.agents:
+        agent.belief = _axis_belief(AXES[agent.id])
+        agent.w = float(agent.id + 1)
+        agent.sensory_channels = [channels[agent.id]]
+    kernel._update_clusters()
+
+    kernel.transmit()
+
+    assert [agent.id for agent in kernel.agents] == list(range(6))
+    assert all(agent.w == 1.0 for agent in kernel.agents)
+    assert set(kernel.social_graph) == set(range(6))
+    assert kernel.cluster_history and set(kernel.cluster_labels) == set(range(6))
+    for child in kernel.agents:
+        mentor_ids = kernel.last_transmission_mentors[child.id]
+        mentors = [parents[mentor_id] for mentor_id in mentor_ids]
+        expected = SwarmKernel._normalized_mentor_average(mentors)
+        assert child.belief == expected
+        channel_donor = min(mentors, key=lambda mentor: (-mentor.w, mentor.id))
+        assert child.sensory_channels == channel_donor.sensory_channels
+
+
+def test_transmission_replays_with_equal_seed_and_has_independent_mentor_sets():
+    cfg = Config(N=8, seed=75, use_deity_priors=False, generation_mix_k=3,
+                 social_network="small_world", social_k=2)
+    first, second = SwarmKernel(cfg), SwarmKernel(cfg)
+    for kernel in (first, second):
+        for agent in kernel.agents:
+            agent.w = float(agent.id + 1)
+            agent.sensory_channels = [list(SENSORY_CHANNELS)[agent.id % len(SENSORY_CHANNELS)]]
+        kernel.transmit()
+
+    assert first.last_transmission_mentors == second.last_transmission_mentors
+    assert _beliefs(first) == _beliefs(second)
+    assert [agent.sensory_channels for agent in first.agents] == [
+        agent.sensory_channels for agent in second.agents
+    ]
+    assert _graph_edges(first) == _graph_edges(second)
+    # A generation-wide draw would produce exactly one repeated tuple here.
+    assert len(set(first.last_transmission_mentors.values())) > 1
 
 
 def test_coercion_deterministically_weights_contact_selection_by_homophily():

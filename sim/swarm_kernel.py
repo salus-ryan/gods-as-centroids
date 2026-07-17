@@ -376,6 +376,9 @@ class SwarmKernel:
         self.cluster_labels: Dict[int, int] = {}
         self.cluster_history: List[Dict[int, int]] = []
         self._next_cluster_label = 0
+        # Parent IDs selected for each child at the latest generation boundary.
+        # This is transmission provenance, not persistent agent state.
+        self.last_transmission_mentors: Dict[int, Tuple[int, ...]] = {}
 
     # ---------- initialization ---------- #
     def _init_agents(self):
@@ -889,32 +892,85 @@ class SwarmKernel:
     def generation_boundary(self) -> bool:
         return (self.t > 0 and self.t % self.cfg.steps_per_generation == 0)
 
-    def transmit(self):
-        # pick mentors weighted by prestige
-        weights = [a.w for a in self.agents]
-        total = sum(weights) or 1.0
-        probs = [w / total for w in weights]
-        mentors = self.rng.choices(self.agents, weights=probs, k=self.cfg.generation_mix_k)
+    def _sample_generation_mentors(self) -> List[Agent]:
+        """Draw one child's distinct mentors, without replacement, by prestige.
 
+        Repeating this draw for every child is intentional: there is no
+        generation-wide parent pool.  Removing a selected mentor also makes
+        ``generation_mix_k`` a genuine mentor-set size rather than allowing a
+        single parent to occupy several slots in one child's average.
+        """
+        available = list(self.agents)
+        mentor_count = min(max(1, self.cfg.generation_mix_k), len(available))
+        mentors: List[Agent] = []
+        for _ in range(mentor_count):
+            weights = [agent.w for agent in available]
+            mentor = self.rng.choices(available, weights=weights, k=1)[0]
+            mentors.append(mentor)
+            available.remove(mentor)
+        return mentors
+
+    @staticmethod
+    def _normalized_mentor_average(mentors: List[Agent]) -> Dict[str, float]:
+        average = {
+            axis: sum(mentor.belief[axis] for mentor in mentors) / len(mentors)
+            for axis in AXES
+        }
+        magnitude = norm(average)
+        # Exact cancellation is possible for antipodal parent beliefs.  Use a
+        # selected parent rather than introduce a non-inherited random belief.
+        if magnitude == 0.0:
+            return dict(mentors[0].belief)
+        return scale(average, 1.0 / magnitude)
+
+    @staticmethod
+    def _channel_mentor(mentors: List[Agent]) -> Agent:
+        """Choose a channel donor deterministically from a child's mentors."""
+        return min(mentors, key=lambda mentor: (-mentor.w, mentor.id))
+
+    def transmit(self):
+        """Replace every agent with a prestige-selected, parent-derived child."""
         new_agents: List[Agent] = []
+        mentor_provenance: Dict[int, Tuple[int, ...]] = {}
         for i in range(self.cfg.N):
-            belief = rnd_unit_vec(self.rng)
-            na = Agent(id=i, belief=belief, w=1.0)
-            # merge a subset of mentors' associations/frequencies
-            for m in mentors:
-                items = list(m.assoc.items())
+            mentors = self._sample_generation_mentors()
+            mentor_provenance[i] = tuple(mentor.id for mentor in mentors)
+            na = Agent(
+                id=i,
+                belief=self._normalized_mentor_average(mentors),
+                # A new generation starts with baseline prestige, never a
+                # residual parent value.
+                w=1.0,
+                sensory_channels=list(self._channel_mentor(mentors).sensory_channels),
+            )
+            # Preserve the existing lexicon-mixing intent, but draw from this
+            # child's own mentor set rather than a generation-wide selection.
+            for mentor in mentors:
+                items = list(mentor.assoc.items())
                 if items:
                     sample_k = min(10, len(items))
                     for form, vec in self.rng.sample(items, k=sample_k):
                         if form not in na.assoc:
                             na.assoc[form] = dict(vec)
-                            na.freq[form] += m.freq[form]
-            # ensure base theonyms exist
-            for name in set(THEONYMS):
+                            na.freq[form] += mentor.freq[form]
+            # Ensure base forms remain available after inherited mixing.
+            for name in THEONYMS:
                 na.assoc.setdefault(name, rnd_unit_vec(self.rng))
             new_agents.append(na)
+
         self.agents = new_agents
-        self.pref_form = {a.id: None for a in self.agents}
+        self.last_transmission_mentors = mentor_provenance
+        self.pref_form = {agent.id: None for agent in self.agents}
+        # Parent graph edges and cluster identities do not describe children.
+        self._build_social_network()
+        self.clusters = []
+        self.centroids = []
+        self.cluster_labels = {}
+        self.cluster_history = []
+        self._next_cluster_label = 0
+        # Establish fresh labels for the new population rather than retaining
+        # memberships that belonged to identically numbered parents.
+        self._update_clusters()
         self.gen += 1
 
     # ---------- metrics ---------- #
