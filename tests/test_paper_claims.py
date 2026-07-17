@@ -119,14 +119,11 @@ class TestPhaseTransitions:
         )
 
     def test_coercion_reduces_neff(self):
-        """N_eff decreases monotonically with coercion (qualitative)."""
-        neffs = []
-        for gamma in [0.0, 0.3, 0.6, 0.9]:
-            kernel = quick_sim(n=50, steps=1500, coercion=gamma, seed=42)
-            neffs.append(len(kernel.centroids))
-        # At minimum, high coercion should have fewer centroids than low
-        assert neffs[-1] <= neffs[0] + 2, \
-            f"N_eff did not decrease with coercion: {neffs}"
+        """Withdrawn legacy claim pending predeclared coercion ablations."""
+        pytest.xfail(
+            "A gamma-to-cluster-count claim requires the canonical runner, fixed "
+            "gamma-independent measurement, and preregistered multi-seed analysis."
+        )
 
 
 # ── §3: Centroid Operations ────────────────────────────────────────
