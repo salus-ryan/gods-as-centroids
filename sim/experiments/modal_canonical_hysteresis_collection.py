@@ -3,10 +3,20 @@
 This launcher collects state-carrying schedule measurements as evidence.  It
 intentionally does not aggregate the records or infer that hysteresis occurred.
 
-Run a detached collection with::
+For detached runs, invoke the remote function directly with a newly generated UUID4
+collection ID (the Volume artifact is the source of truth)::
 
-    modal run --detach sim/experiments/modal_canonical_hysteresis_collection.py \
-      --output hysteresis-raw.json
+    modal run --detach sim/experiments/modal_canonical_hysteresis_collection.py::remote_collect \
+      --collection-id 4f0dce79-9d19-4cdf-bc35-508fa95a5521
+
+Monitor it with ``modal app list`` (and ``modal app logs <app-id>``).  Download
+its durable result after it completes with::
+
+    modal volume get canonical-hysteresis-raw-collections \
+      collections/4f0dce79-9d19-4cdf-bc35-508fa95a5521.json hysteresis-raw.json
+
+The normal local entrypoint accepts the same ``--collection-id`` and can write
+an optional local copy only after reading and verifying that Volume artifact.
 """
 from __future__ import annotations
 
@@ -15,7 +25,9 @@ from dataclasses import asdict
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+import re
+from typing import Any, Iterable
+import uuid
 
 from sim.experiments.hysteresis_runner import (
     HysteresisRunner,
@@ -28,6 +40,54 @@ DEFAULT_REPLICATES = 12
 DEFAULT_STEPS_PER_GAMMA = 500
 DEFAULT_SEED = 202503
 DEFAULT_GAMMA_SCHEDULE = tuple(round(index / 10, 1) for index in range(11))
+# Keep raw evidence separate from ephemeral containers and give downloaders a
+# stable public name.
+COLLECTION_VOLUME_NAME = "canonical-hysteresis-raw-collections"
+COLLECTION_VOLUME_MOUNT_PATH = "/collections"
+_UUID4_COLLECTION_ID = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+)
+
+
+def validate_collection_id(collection_id: str) -> str:
+    """Return a canonical UUID4 collection ID suitable for a unique artifact.
+
+    Requiring a UUID4, rather than accepting a user-selected filename, prevents
+    traversal and makes accidental artifact-name collisions impractical.
+    """
+    if not isinstance(collection_id, str) or not _UUID4_COLLECTION_ID.fullmatch(collection_id):
+        raise ValueError("collection_id must be a canonical lowercase UUID4")
+    # Retain an explicit UUID parse as a guard if this pattern is ever changed.
+    parsed = uuid.UUID(collection_id)
+    if parsed.version != 4:
+        raise ValueError("collection_id must be a UUID4")
+    return collection_id
+
+
+def collection_artifact_path(collection_id: str) -> str:
+    """Return the absolute mounted Volume path for a validated collection ID."""
+    return f"{COLLECTION_VOLUME_MOUNT_PATH}/{validate_collection_id(collection_id)}.json"
+
+
+def serialize_collection(collection: dict[str, Any]) -> bytes:
+    """Produce deterministic, JSON-safe bytes for persistence and checksums."""
+    return (json.dumps(collection, indent=2, sort_keys=True, allow_nan=False) + "\n").encode("utf-8")
+
+
+def collection_sha256(serialized_collection: bytes) -> str:
+    """Return the SHA-256 checksum of serialized collection bytes."""
+    return hashlib.sha256(serialized_collection).hexdigest()
+
+
+def deserialize_collection(serialized_collection: bytes, expected_sha256: str | None = None) -> dict[str, Any]:
+    """Verify and decode a persisted collection artifact."""
+    checksum = collection_sha256(serialized_collection)
+    if expected_sha256 is not None and checksum != expected_sha256:
+        raise ValueError("persisted collection checksum does not match remote metadata")
+    decoded = json.loads(serialized_collection.decode("utf-8"))
+    if not isinstance(decoded, dict):
+        raise ValueError("persisted collection must be a JSON object")
+    return decoded
 
 
 def parse_gamma_schedule(gammas: str | Iterable[float]) -> list[float]:
@@ -106,7 +166,7 @@ def collect_canonical_hysteresis(
     }
     # Fail locally instead of returning a result that Modal cannot serialize or
     # a JSON artifact that a downstream reader cannot consume.
-    json.dumps(collection, allow_nan=False)
+    serialize_collection(collection)
     return collection
 
 
@@ -114,8 +174,8 @@ def write_collection(output: str | Path, collection: dict[str, Any]) -> Path:
     """Exclusively write a collection artifact; never replace prior evidence."""
     path = Path(output)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("x", encoding="utf-8") as destination:
-        json.dump(collection, destination, indent=2, sort_keys=True, allow_nan=False)
+    with path.open("xb") as destination:
+        destination.write(serialize_collection(collection))
     return path
 
 
@@ -127,41 +187,72 @@ except ImportError:  # pragma: no cover - depends on an intentionally lean envir
 
 if modal is not None:
     app = modal.App("canonical-hysteresis-raw-collection")
+    collection_volume = modal.Volume.from_name(COLLECTION_VOLUME_NAME, create_if_missing=True)
     # Upload the repository package, including the canonical runner and kernel.
     image = modal.Image.debian_slim(python_version="3.11").add_local_dir(
         local_path=str(Path(__file__).resolve().parents[1]), remote_path="/root/sim",
     )
 
-    @app.function(image=image, timeout=3600, cpu=1)
+    @app.function(
+        image=image,
+        timeout=3600,
+        cpu=1,
+        volumes={COLLECTION_VOLUME_MOUNT_PATH: collection_volume},
+    )
     def remote_collect(
+        collection_id: str,
         replicates: int = DEFAULT_REPLICATES,
         steps_per_gamma: int = DEFAULT_STEPS_PER_GAMMA,
         seed: int = DEFAULT_SEED,
         gammas: str | list[float] = list(DEFAULT_GAMMA_SCHEDULE),
     ) -> dict[str, Any]:
-        """Run the uploaded canonical runner remotely and return raw evidence."""
+        """Persist raw evidence in the named Volume and return artifact metadata."""
         from sim.experiments.hysteresis_runner import HysteresisRunner as RemoteHysteresisRunner
         from sim.experiments.hysteresis_runner import run_hysteresis_schedule as remote_schedule
-        from sim.experiments.modal_canonical_hysteresis_collection import collect_canonical_hysteresis
+        from sim.experiments.modal_canonical_hysteresis_collection import (
+            collection_artifact_path,
+            collection_sha256,
+            collect_canonical_hysteresis,
+            serialize_collection,
+        )
 
         # Keep the remote boundary auditable: this function uses the uploaded
         # repository implementation rather than an inline simulation kernel.
         assert RemoteHysteresisRunner is not None and remote_schedule is not None
-        return collect_canonical_hysteresis(
+        collection = collect_canonical_hysteresis(
             replicates=replicates,
             steps_per_gamma=steps_per_gamma,
             seed=seed,
             gammas=gammas,
         )
+        artifact_path = collection_artifact_path(collection_id)
+        serialized = serialize_collection(collection)
+        # Exclusive creation protects existing evidence even if an ID is reused.
+        with Path(artifact_path).open("xb") as artifact:
+            artifact.write(serialized)
+        collection_volume.commit()
+        checksum = collection_sha256(serialized)
+        return {
+            "collection_id": collection_id,
+            "volume_name": COLLECTION_VOLUME_NAME,
+            "volume_path": artifact_path,
+            "checksum": checksum,
+            "sha256": checksum,
+        }
 
     @app.local_entrypoint()
     def main(
         output: str,
+        collection_id: str,
         replicates: int = DEFAULT_REPLICATES,
         steps_per_gamma: int = DEFAULT_STEPS_PER_GAMMA,
         seed: int = DEFAULT_SEED,
         gammas: str = ",".join(str(value) for value in DEFAULT_GAMMA_SCHEDULE),
     ) -> None:
-        """Fetch remote raw evidence and write the requested new JSON artifact."""
-        collection = remote_collect.remote(replicates, steps_per_gamma, seed, gammas)
+        """Write a local copy only after reading the committed Volume artifact."""
+        artifact = remote_collect.remote(collection_id, replicates, steps_per_gamma, seed, gammas)
+        # The returned object is metadata, never an alternative result source.
+        volume_path = artifact["volume_path"].lstrip("/")
+        serialized = b"".join(collection_volume.read_file(volume_path))
+        collection = deserialize_collection(serialized, artifact["checksum"])
         write_collection(output, collection)
