@@ -1,0 +1,45 @@
+{
+  "git_commit": "268af3c5c9ffcbb3e0f54e67f63f4e83a8f0f493",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 8014,
+      "sha256": "6bce0893402aa94e816d98bce09344eddb9f9393b28f518978f6989d3142e32b"
+    },
+    {
+      "path": "paper/gods_as_centroids_v2.md",
+      "bytes": 81187,
+      "sha256": "23d09b7ff27d9d2993878e1f5dc5840270c65d1f40acc6ac2a9fa817449d2499"
+    },
+    {
+      "path": "sim/swarm_kernel.py",
+      "bytes": 43619,
+      "sha256": "6ec5ebbcf962b4abea645c08690b4b5b4e2b610eb208f6434aec22d7630d56df"
+    },
+    {
+      "path": "sim/hysteresis_modal.py",
+      "bytes": 26556,
+      "sha256": "df4a1703930fcab3b73816e4c090ee0a79d0814748ef0a14c822be378a70378d"
+    },
+    {
+      "path": "sim/corpus_calibration.py",
+      "bytes": 19713,
+      "sha256": "bf90b44e4845a69dc1859f546e93f483bb73a5ec514f4abd05a01cf7d85965cb"
+    },
+    {
+      "path": "tests/test_paper_claims.py",
+      "bytes": 15930,
+      "sha256": "a725535ab87bd728cf6d0421d94588f863e613a61ebd1ed42483a3331148c01b"
+    },
+    {
+      "path": "requirements.txt",
+      "bytes": 304,
+      "sha256": "efbaf2c4aa0e452d3c6dfa5c8c2eba5a18037b1d02df2cfcc56fdd6b044613f6"
+    },
+    {
+      "path": "lattice_autoencoder/data/merged_consensus.json",
+      "bytes": 1934527,
+      "sha256": "a9d1e1900844e80a45de2073bf60890fd6ea93d7bf5835fc47b1ceb75bd8b11c"
+    }
+  ]
+}
