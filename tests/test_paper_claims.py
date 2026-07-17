@@ -132,11 +132,11 @@ class TestCentroidOperations:
     """Verify fusion, fission, and perturbation mechanics."""
 
     def test_fusion_merges_nearby_centroids(self):
-        """Under high coercion, nearby centroids merge (§3.1)."""
-        kernel = quick_sim(n=60, steps=2000, coercion=0.8)
-        # High coercion should produce fewer centroids than low
-        kernel_low = quick_sim(n=60, steps=2000, coercion=0.05, seed=42)
-        assert len(kernel.centroids) <= len(kernel_low.centroids) + 2
+        """Withdrawn legacy claim pending exchange-gated fusion experiments."""
+        pytest.xfail(
+            "Fusion now requires observed cross-cluster membership exchange; "
+            "a high-versus-low gamma count comparison is not a fusion acceptance test."
+        )
 
     def test_prophet_creates_perturbation(self):
         """Prophet events can nucleate new attractors (§3.3)."""
@@ -164,16 +164,11 @@ class TestAccessibilityCorollary:
             "No centroids with sensory restrictions"
 
     def test_restricted_vs_unrestricted_similar(self):
-        """Restricted and unrestricted simulations produce similar centroid counts."""
-        k_unr = quick_sim(n=50, steps=1500, coercion=0.2, seed=42)
-        k_res = quick_sim(
-            n=50, steps=1500, coercion=0.2, seed=42,
-            enable_sensory_restrictions=True,
-            sensory_restriction_ratio=0.2
+        """Withdrawn legacy claim pending matched-attractor evaluation."""
+        pytest.xfail(
+            "Centroid-count proximity does not test the accessibility corollary; "
+            "v2 requires matched centroid and belief-distribution analysis."
         )
-        diff = abs(len(k_unr.centroids) - len(k_res.centroids))
-        assert diff <= 5, \
-            f"Centroid count diverged: unrestricted={len(k_unr.centroids)}, restricted={len(k_res.centroids)}"
 
 
 # ── §5.2: Ritual Stabilization ─────────────────────────────────────
