@@ -1,0 +1,295 @@
+{
+  "analysis_type": "descriptive paired dominance summaries",
+  "bootstrap": {
+    "confidence_level": 0.95,
+    "method": "percentile bootstrap of replicate means, sampled with replacement",
+    "resamples": 10000,
+    "seed": 202503
+  },
+  "contrasts_by_gamma": [
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": -0.53125,
+        "upper": -0.53125
+      },
+      "gamma": 0.0,
+      "per_replicate_descending_minus_ascending": [
+        -0.53125
+      ],
+      "summary": {
+        "count": 1,
+        "maximum": -0.53125,
+        "mean": -0.53125,
+        "minimum": -0.53125,
+        "standard_deviation": 0.0
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": 0.0,
+        "upper": 0.0
+      },
+      "gamma": 0.1,
+      "per_replicate_descending_minus_ascending": [
+        0.0
+      ],
+      "summary": {
+        "count": 1,
+        "maximum": 0.0,
+        "mean": 0.0,
+        "minimum": 0.0,
+        "standard_deviation": 0.0
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": -0.109375,
+        "upper": -0.109375
+      },
+      "gamma": 0.2,
+      "per_replicate_descending_minus_ascending": [
+        -0.109375
+      ],
+      "summary": {
+        "count": 1,
+        "maximum": -0.109375,
+        "mean": -0.109375,
+        "minimum": -0.109375,
+        "standard_deviation": 0.0
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": 0.515625,
+        "upper": 0.515625
+      },
+      "gamma": 0.3,
+      "per_replicate_descending_minus_ascending": [
+        0.515625
+      ],
+      "summary": {
+        "count": 1,
+        "maximum": 0.515625,
+        "mean": 0.515625,
+        "minimum": 0.515625,
+        "standard_deviation": 0.0
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": -0.09375,
+        "upper": -0.09375
+      },
+      "gamma": 0.4,
+      "per_replicate_descending_minus_ascending": [
+        -0.09375
+      ],
+      "summary": {
+        "count": 1,
+        "maximum": -0.09375,
+        "mean": -0.09375,
+        "minimum": -0.09375,
+        "standard_deviation": 0.0
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": 0.09375,
+        "upper": 0.09375
+      },
+      "gamma": 0.5,
+      "per_replicate_descending_minus_ascending": [
+        0.09375
+      ],
+      "summary": {
+        "count": 1,
+        "maximum": 0.09375,
+        "mean": 0.09375,
+        "minimum": 0.09375,
+        "standard_deviation": 0.0
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": 0.15625,
+        "upper": 0.15625
+      },
+      "gamma": 0.6,
+      "per_replicate_descending_minus_ascending": [
+        0.15625
+      ],
+      "summary": {
+        "count": 1,
+        "maximum": 0.15625,
+        "mean": 0.15625,
+        "minimum": 0.15625,
+        "standard_deviation": 0.0
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": -0.203125,
+        "upper": -0.203125
+      },
+      "gamma": 0.7,
+      "per_replicate_descending_minus_ascending": [
+        -0.203125
+      ],
+      "summary": {
+        "count": 1,
+        "maximum": -0.203125,
+        "mean": -0.203125,
+        "minimum": -0.203125,
+        "standard_deviation": 0.0
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": -0.125,
+        "upper": -0.125
+      },
+      "gamma": 0.8,
+      "per_replicate_descending_minus_ascending": [
+        -0.125
+      ],
+      "summary": {
+        "count": 1,
+        "maximum": -0.125,
+        "mean": -0.125,
+        "minimum": -0.125,
+        "standard_deviation": 0.0
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": 0.171875,
+        "upper": 0.171875
+      },
+      "gamma": 0.9,
+      "per_replicate_descending_minus_ascending": [
+        0.171875
+      ],
+      "summary": {
+        "count": 1,
+        "maximum": 0.171875,
+        "mean": 0.171875,
+        "minimum": 0.171875,
+        "standard_deviation": 0.0
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": -0.71875,
+        "upper": -0.71875
+      },
+      "gamma": 1.0,
+      "per_replicate_descending_minus_ascending": [
+        -0.71875
+      ],
+      "summary": {
+        "count": 1,
+        "maximum": -0.71875,
+        "mean": -0.71875,
+        "minimum": -0.71875,
+        "standard_deviation": 0.0
+      }
+    }
+  ],
+  "formulae": {
+    "contrast": "descending dominance - ascending dominance at the same replicate and gamma",
+    "loop_area": "signed integral over gamma of (descending dominance - ascending dominance), using the trapezoidal rule"
+  },
+  "interpretation": "This report is descriptive only. It does not provide a result proof and does not infer a phase transition or hysteresis conclusion.",
+  "loop_area_bootstrap_mean_confidence_interval": {
+    "lower": -0.02187500000000001,
+    "upper": -0.02187500000000001
+  },
+  "loop_area_summary": {
+    "count": 1,
+    "maximum": -0.02187500000000001,
+    "mean": -0.02187500000000001,
+    "minimum": -0.02187500000000001,
+    "standard_deviation": 0.0
+  },
+  "per_replicate": [
+    {
+      "contrasts": [
+        {
+          "ascending_dominance": 0.765625,
+          "descending_dominance": 0.234375,
+          "descending_minus_ascending": -0.53125,
+          "gamma": 0.0
+        },
+        {
+          "ascending_dominance": 0.734375,
+          "descending_dominance": 0.734375,
+          "descending_minus_ascending": 0.0,
+          "gamma": 0.1
+        },
+        {
+          "ascending_dominance": 0.6875,
+          "descending_dominance": 0.578125,
+          "descending_minus_ascending": -0.109375,
+          "gamma": 0.2
+        },
+        {
+          "ascending_dominance": 0.265625,
+          "descending_dominance": 0.78125,
+          "descending_minus_ascending": 0.515625,
+          "gamma": 0.3
+        },
+        {
+          "ascending_dominance": 0.671875,
+          "descending_dominance": 0.578125,
+          "descending_minus_ascending": -0.09375,
+          "gamma": 0.4
+        },
+        {
+          "ascending_dominance": 0.328125,
+          "descending_dominance": 0.421875,
+          "descending_minus_ascending": 0.09375,
+          "gamma": 0.5
+        },
+        {
+          "ascending_dominance": 0.328125,
+          "descending_dominance": 0.484375,
+          "descending_minus_ascending": 0.15625,
+          "gamma": 0.6
+        },
+        {
+          "ascending_dominance": 0.75,
+          "descending_dominance": 0.546875,
+          "descending_minus_ascending": -0.203125,
+          "gamma": 0.7
+        },
+        {
+          "ascending_dominance": 0.5625,
+          "descending_dominance": 0.4375,
+          "descending_minus_ascending": -0.125,
+          "gamma": 0.8
+        },
+        {
+          "ascending_dominance": 0.5625,
+          "descending_dominance": 0.734375,
+          "descending_minus_ascending": 0.171875,
+          "gamma": 0.9
+        },
+        {
+          "ascending_dominance": 0.859375,
+          "descending_dominance": 0.140625,
+          "descending_minus_ascending": -0.71875,
+          "gamma": 1.0
+        }
+      ],
+      "loop_area": -0.02187500000000001,
+      "replicate": 0
+    }
+  ],
+  "validation": {
+    "failures": [],
+    "passed": true,
+    "warnings": [
+      "Only one replicate is available; bootstrap resampling cannot characterize between-replicate variation."
+    ]
+  }
+}
