@@ -1,0 +1,1206 @@
+{
+  "analysis_type": "descriptive paired dominance summaries",
+  "bootstrap": {
+    "confidence_level": 0.95,
+    "method": "percentile bootstrap of replicate means, sampled with replacement",
+    "resamples": 10000,
+    "seed": 202503
+  },
+  "contrasts_by_gamma": [
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": -0.6770833333333334,
+        "upper": -0.5963541666666666
+      },
+      "gamma": 0.0,
+      "per_replicate_descending_minus_ascending": [
+        -0.65625,
+        -0.71875,
+        -0.484375,
+        -0.578125,
+        -0.734375,
+        -0.578125,
+        -0.703125,
+        -0.671875,
+        -0.671875,
+        -0.640625,
+        -0.5625,
+        -0.671875
+      ],
+      "summary": {
+        "count": 12,
+        "maximum": -0.484375,
+        "mean": -0.6393229166666666,
+        "minimum": -0.734375,
+        "standard_deviation": 0.07402848918608458
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": -0.2421875,
+        "upper": -0.11588541666666667
+      },
+      "gamma": 0.1,
+      "per_replicate_descending_minus_ascending": [
+        -0.1875,
+        -0.375,
+        -0.09375,
+        -0.265625,
+        -0.234375,
+        -0.125,
+        -0.359375,
+        -0.140625,
+        -0.203125,
+        0.0,
+        -0.09375,
+        -0.046875
+      ],
+      "summary": {
+        "count": 12,
+        "maximum": 0.0,
+        "mean": -0.17708333333333334,
+        "minimum": -0.375,
+        "standard_deviation": 0.11699004830119163
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": 0.1875,
+        "upper": 0.33203125
+      },
+      "gamma": 0.2,
+      "per_replicate_descending_minus_ascending": [
+        0.21875,
+        0.109375,
+        0.109375,
+        0.296875,
+        0.140625,
+        0.1875,
+        0.296875,
+        0.515625,
+        0.484375,
+        0.21875,
+        0.328125,
+        0.15625
+      ],
+      "summary": {
+        "count": 12,
+        "maximum": 0.515625,
+        "mean": 0.2552083333333333,
+        "minimum": 0.109375,
+        "standard_deviation": 0.13545308368135395
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": -0.5130208333333334,
+        "upper": -0.33203125
+      },
+      "gamma": 0.3,
+      "per_replicate_descending_minus_ascending": [
+        -0.609375,
+        -0.390625,
+        -0.53125,
+        -0.140625,
+        -0.375,
+        -0.625,
+        -0.4375,
+        -0.578125,
+        -0.265625,
+        -0.4375,
+        -0.15625,
+        -0.5625
+      ],
+      "summary": {
+        "count": 12,
+        "maximum": -0.140625,
+        "mean": -0.42578125,
+        "minimum": -0.625,
+        "standard_deviation": 0.16790680015095225
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": -0.09114583333333333,
+        "upper": -0.010416666666666666
+      },
+      "gamma": 0.4,
+      "per_replicate_descending_minus_ascending": [
+        -0.046875,
+        -0.078125,
+        -0.03125,
+        -0.171875,
+        -0.015625,
+        0.015625,
+        -0.015625,
+        -0.015625,
+        -0.09375,
+        0.0625,
+        -0.1875,
+        0.0
+      ],
+      "summary": {
+        "count": 12,
+        "maximum": 0.0625,
+        "mean": -0.048177083333333336,
+        "minimum": -0.1875,
+        "standard_deviation": 0.07372806797027023
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": -0.07161458333333333,
+        "upper": 0.053385416666666664
+      },
+      "gamma": 0.5,
+      "per_replicate_descending_minus_ascending": [
+        -0.078125,
+        0.078125,
+        0.03125,
+        0.03125,
+        -0.109375,
+        -0.09375,
+        -0.078125,
+        0.015625,
+        0.046875,
+        0.265625,
+        -0.15625,
+        -0.109375
+      ],
+      "summary": {
+        "count": 12,
+        "maximum": 0.265625,
+        "mean": -0.013020833333333334,
+        "minimum": -0.15625,
+        "standard_deviation": 0.11613319930605807
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": 0.2591145833333333,
+        "upper": 0.4127604166666667
+      },
+      "gamma": 0.6,
+      "per_replicate_descending_minus_ascending": [
+        0.25,
+        0.4375,
+        0.390625,
+        0.359375,
+        0.125,
+        0.109375,
+        0.40625,
+        0.484375,
+        0.546875,
+        0.28125,
+        0.21875,
+        0.453125
+      ],
+      "summary": {
+        "count": 12,
+        "maximum": 0.546875,
+        "mean": 0.3385416666666667,
+        "minimum": 0.109375,
+        "standard_deviation": 0.14107147138198703
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": -0.5989583333333334,
+        "upper": -0.3723958333333333
+      },
+      "gamma": 0.7,
+      "per_replicate_descending_minus_ascending": [
+        -0.546875,
+        -0.640625,
+        -0.140625,
+        -0.78125,
+        -0.546875,
+        -0.640625,
+        -0.40625,
+        -0.5,
+        -0.578125,
+        -0.078125,
+        -0.375,
+        -0.671875
+      ],
+      "summary": {
+        "count": 12,
+        "maximum": -0.078125,
+        "mean": -0.4921875,
+        "minimum": -0.78125,
+        "standard_deviation": 0.2109506519468906
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": -0.19401041666666666,
+        "upper": 0.01953125
+      },
+      "gamma": 0.8,
+      "per_replicate_descending_minus_ascending": [
+        0.03125,
+        -0.53125,
+        -0.125,
+        -0.078125,
+        -0.15625,
+        -0.0625,
+        0.1875,
+        -0.140625,
+        -0.03125,
+        0.203125,
+        0.015625,
+        -0.296875
+      ],
+      "summary": {
+        "count": 12,
+        "maximum": 0.203125,
+        "mean": -0.08203125,
+        "minimum": -0.53125,
+        "standard_deviation": 0.19955617035772388
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": -0.036458333333333336,
+        "upper": 0.046875
+      },
+      "gamma": 0.9,
+      "per_replicate_descending_minus_ascending": [
+        0.09375,
+        0.03125,
+        -0.09375,
+        0.015625,
+        0.0625,
+        -0.03125,
+        -0.046875,
+        0.03125,
+        0.046875,
+        0.015625,
+        0.109375,
+        -0.15625
+      ],
+      "summary": {
+        "count": 12,
+        "maximum": 0.109375,
+        "mean": 0.006510416666666667,
+        "minimum": -0.15625,
+        "standard_deviation": 0.07696823537426843
+      }
+    },
+    {
+      "bootstrap_mean_confidence_interval": {
+        "lower": 0.33203125,
+        "upper": 0.54296875
+      },
+      "gamma": 1.0,
+      "per_replicate_descending_minus_ascending": [
+        0.4375,
+        0.640625,
+        0.15625,
+        0.34375,
+        0.375,
+        0.09375,
+        0.625,
+        0.375,
+        0.46875,
+        0.546875,
+        0.78125,
+        0.421875
+      ],
+      "summary": {
+        "count": 12,
+        "maximum": 0.78125,
+        "mean": 0.4388020833333333,
+        "minimum": 0.09375,
+        "standard_deviation": 0.19577596526338623
+      }
+    }
+  ],
+  "formulae": {
+    "contrast": "descending dominance - ascending dominance at the same replicate and gamma",
+    "loop_area": "signed integral over gamma of (descending dominance - ascending dominance), using the trapezoidal rule"
+  },
+  "interpretation": "This report is descriptive only. It does not provide a result proof and does not infer a phase transition or hysteresis conclusion.",
+  "loop_area_bootstrap_mean_confidence_interval": {
+    "lower": -0.10605631510416669,
+    "upper": -0.0408854166666667
+  },
+  "loop_area_summary": {
+    "count": 12,
+    "maximum": 0.04843749999999998,
+    "mean": -0.07382812500000004,
+    "minimum": -0.15078125000000003,
+    "standard_deviation": 0.060855951407672165
+  },
+  "per_replicate": [
+    {
+      "contrasts": [
+        {
+          "ascending_dominance": 0.859375,
+          "descending_dominance": 0.203125,
+          "descending_minus_ascending": -0.65625,
+          "gamma": 0.0
+        },
+        {
+          "ascending_dominance": 0.34375,
+          "descending_dominance": 0.15625,
+          "descending_minus_ascending": -0.1875,
+          "gamma": 0.1
+        },
+        {
+          "ascending_dominance": 0.140625,
+          "descending_dominance": 0.359375,
+          "descending_minus_ascending": 0.21875,
+          "gamma": 0.2
+        },
+        {
+          "ascending_dominance": 0.796875,
+          "descending_dominance": 0.1875,
+          "descending_minus_ascending": -0.609375,
+          "gamma": 0.3
+        },
+        {
+          "ascending_dominance": 0.203125,
+          "descending_dominance": 0.15625,
+          "descending_minus_ascending": -0.046875,
+          "gamma": 0.4
+        },
+        {
+          "ascending_dominance": 0.234375,
+          "descending_dominance": 0.15625,
+          "descending_minus_ascending": -0.078125,
+          "gamma": 0.5
+        },
+        {
+          "ascending_dominance": 0.234375,
+          "descending_dominance": 0.484375,
+          "descending_minus_ascending": 0.25,
+          "gamma": 0.6
+        },
+        {
+          "ascending_dominance": 0.78125,
+          "descending_dominance": 0.234375,
+          "descending_minus_ascending": -0.546875,
+          "gamma": 0.7
+        },
+        {
+          "ascending_dominance": 0.1875,
+          "descending_dominance": 0.21875,
+          "descending_minus_ascending": 0.03125,
+          "gamma": 0.8
+        },
+        {
+          "ascending_dominance": 0.109375,
+          "descending_dominance": 0.203125,
+          "descending_minus_ascending": 0.09375,
+          "gamma": 0.9
+        },
+        {
+          "ascending_dominance": 0.125,
+          "descending_dominance": 0.5625,
+          "descending_minus_ascending": 0.4375,
+          "gamma": 1.0
+        }
+      ],
+      "loop_area": -0.09843750000000004,
+      "replicate": 0
+    },
+    {
+      "contrasts": [
+        {
+          "ascending_dominance": 0.875,
+          "descending_dominance": 0.15625,
+          "descending_minus_ascending": -0.71875,
+          "gamma": 0.0
+        },
+        {
+          "ascending_dominance": 0.578125,
+          "descending_dominance": 0.203125,
+          "descending_minus_ascending": -0.375,
+          "gamma": 0.1
+        },
+        {
+          "ascending_dominance": 0.25,
+          "descending_dominance": 0.359375,
+          "descending_minus_ascending": 0.109375,
+          "gamma": 0.2
+        },
+        {
+          "ascending_dominance": 0.484375,
+          "descending_dominance": 0.09375,
+          "descending_minus_ascending": -0.390625,
+          "gamma": 0.3
+        },
+        {
+          "ascending_dominance": 0.1875,
+          "descending_dominance": 0.109375,
+          "descending_minus_ascending": -0.078125,
+          "gamma": 0.4
+        },
+        {
+          "ascending_dominance": 0.125,
+          "descending_dominance": 0.203125,
+          "descending_minus_ascending": 0.078125,
+          "gamma": 0.5
+        },
+        {
+          "ascending_dominance": 0.0625,
+          "descending_dominance": 0.5,
+          "descending_minus_ascending": 0.4375,
+          "gamma": 0.6
+        },
+        {
+          "ascending_dominance": 0.78125,
+          "descending_dominance": 0.140625,
+          "descending_minus_ascending": -0.640625,
+          "gamma": 0.7
+        },
+        {
+          "ascending_dominance": 0.671875,
+          "descending_dominance": 0.140625,
+          "descending_minus_ascending": -0.53125,
+          "gamma": 0.8
+        },
+        {
+          "ascending_dominance": 0.203125,
+          "descending_dominance": 0.234375,
+          "descending_minus_ascending": 0.03125,
+          "gamma": 0.9
+        },
+        {
+          "ascending_dominance": 0.0625,
+          "descending_dominance": 0.703125,
+          "descending_minus_ascending": 0.640625,
+          "gamma": 1.0
+        }
+      ],
+      "loop_area": -0.13984375000000007,
+      "replicate": 1
+    },
+    {
+      "contrasts": [
+        {
+          "ascending_dominance": 0.6875,
+          "descending_dominance": 0.203125,
+          "descending_minus_ascending": -0.484375,
+          "gamma": 0.0
+        },
+        {
+          "ascending_dominance": 0.265625,
+          "descending_dominance": 0.171875,
+          "descending_minus_ascending": -0.09375,
+          "gamma": 0.1
+        },
+        {
+          "ascending_dominance": 0.21875,
+          "descending_dominance": 0.328125,
+          "descending_minus_ascending": 0.109375,
+          "gamma": 0.2
+        },
+        {
+          "ascending_dominance": 0.640625,
+          "descending_dominance": 0.109375,
+          "descending_minus_ascending": -0.53125,
+          "gamma": 0.3
+        },
+        {
+          "ascending_dominance": 0.140625,
+          "descending_dominance": 0.109375,
+          "descending_minus_ascending": -0.03125,
+          "gamma": 0.4
+        },
+        {
+          "ascending_dominance": 0.078125,
+          "descending_dominance": 0.109375,
+          "descending_minus_ascending": 0.03125,
+          "gamma": 0.5
+        },
+        {
+          "ascending_dominance": 0.09375,
+          "descending_dominance": 0.484375,
+          "descending_minus_ascending": 0.390625,
+          "gamma": 0.6
+        },
+        {
+          "ascending_dominance": 0.375,
+          "descending_dominance": 0.234375,
+          "descending_minus_ascending": -0.140625,
+          "gamma": 0.7
+        },
+        {
+          "ascending_dominance": 0.234375,
+          "descending_dominance": 0.109375,
+          "descending_minus_ascending": -0.125,
+          "gamma": 0.8
+        },
+        {
+          "ascending_dominance": 0.21875,
+          "descending_dominance": 0.125,
+          "descending_minus_ascending": -0.09375,
+          "gamma": 0.9
+        },
+        {
+          "ascending_dominance": 0.078125,
+          "descending_dominance": 0.234375,
+          "descending_minus_ascending": 0.15625,
+          "gamma": 1.0
+        }
+      ],
+      "loop_area": -0.06484375000000002,
+      "replicate": 2
+    },
+    {
+      "contrasts": [
+        {
+          "ascending_dominance": 0.71875,
+          "descending_dominance": 0.140625,
+          "descending_minus_ascending": -0.578125,
+          "gamma": 0.0
+        },
+        {
+          "ascending_dominance": 0.375,
+          "descending_dominance": 0.109375,
+          "descending_minus_ascending": -0.265625,
+          "gamma": 0.1
+        },
+        {
+          "ascending_dominance": 0.171875,
+          "descending_dominance": 0.46875,
+          "descending_minus_ascending": 0.296875,
+          "gamma": 0.2
+        },
+        {
+          "ascending_dominance": 0.3125,
+          "descending_dominance": 0.171875,
+          "descending_minus_ascending": -0.140625,
+          "gamma": 0.3
+        },
+        {
+          "ascending_dominance": 0.3125,
+          "descending_dominance": 0.140625,
+          "descending_minus_ascending": -0.171875,
+          "gamma": 0.4
+        },
+        {
+          "ascending_dominance": 0.09375,
+          "descending_dominance": 0.125,
+          "descending_minus_ascending": 0.03125,
+          "gamma": 0.5
+        },
+        {
+          "ascending_dominance": 0.15625,
+          "descending_dominance": 0.515625,
+          "descending_minus_ascending": 0.359375,
+          "gamma": 0.6
+        },
+        {
+          "ascending_dominance": 0.890625,
+          "descending_dominance": 0.109375,
+          "descending_minus_ascending": -0.78125,
+          "gamma": 0.7
+        },
+        {
+          "ascending_dominance": 0.234375,
+          "descending_dominance": 0.15625,
+          "descending_minus_ascending": -0.078125,
+          "gamma": 0.8
+        },
+        {
+          "ascending_dominance": 0.109375,
+          "descending_dominance": 0.125,
+          "descending_minus_ascending": 0.015625,
+          "gamma": 0.9
+        },
+        {
+          "ascending_dominance": 0.171875,
+          "descending_dominance": 0.515625,
+          "descending_minus_ascending": 0.34375,
+          "gamma": 1.0
+        }
+      ],
+      "loop_area": -0.08515625000000006,
+      "replicate": 3
+    },
+    {
+      "contrasts": [
+        {
+          "ascending_dominance": 0.828125,
+          "descending_dominance": 0.09375,
+          "descending_minus_ascending": -0.734375,
+          "gamma": 0.0
+        },
+        {
+          "ascending_dominance": 0.390625,
+          "descending_dominance": 0.15625,
+          "descending_minus_ascending": -0.234375,
+          "gamma": 0.1
+        },
+        {
+          "ascending_dominance": 0.28125,
+          "descending_dominance": 0.421875,
+          "descending_minus_ascending": 0.140625,
+          "gamma": 0.2
+        },
+        {
+          "ascending_dominance": 0.5625,
+          "descending_dominance": 0.1875,
+          "descending_minus_ascending": -0.375,
+          "gamma": 0.3
+        },
+        {
+          "ascending_dominance": 0.125,
+          "descending_dominance": 0.109375,
+          "descending_minus_ascending": -0.015625,
+          "gamma": 0.4
+        },
+        {
+          "ascending_dominance": 0.25,
+          "descending_dominance": 0.140625,
+          "descending_minus_ascending": -0.109375,
+          "gamma": 0.5
+        },
+        {
+          "ascending_dominance": 0.171875,
+          "descending_dominance": 0.296875,
+          "descending_minus_ascending": 0.125,
+          "gamma": 0.6
+        },
+        {
+          "ascending_dominance": 0.609375,
+          "descending_dominance": 0.0625,
+          "descending_minus_ascending": -0.546875,
+          "gamma": 0.7
+        },
+        {
+          "ascending_dominance": 0.25,
+          "descending_dominance": 0.09375,
+          "descending_minus_ascending": -0.15625,
+          "gamma": 0.8
+        },
+        {
+          "ascending_dominance": 0.125,
+          "descending_dominance": 0.1875,
+          "descending_minus_ascending": 0.0625,
+          "gamma": 0.9
+        },
+        {
+          "ascending_dominance": 0.328125,
+          "descending_dominance": 0.703125,
+          "descending_minus_ascending": 0.375,
+          "gamma": 1.0
+        }
+      ],
+      "loop_area": -0.12890625000000003,
+      "replicate": 4
+    },
+    {
+      "contrasts": [
+        {
+          "ascending_dominance": 0.6875,
+          "descending_dominance": 0.109375,
+          "descending_minus_ascending": -0.578125,
+          "gamma": 0.0
+        },
+        {
+          "ascending_dominance": 0.25,
+          "descending_dominance": 0.125,
+          "descending_minus_ascending": -0.125,
+          "gamma": 0.1
+        },
+        {
+          "ascending_dominance": 0.265625,
+          "descending_dominance": 0.453125,
+          "descending_minus_ascending": 0.1875,
+          "gamma": 0.2
+        },
+        {
+          "ascending_dominance": 0.71875,
+          "descending_dominance": 0.09375,
+          "descending_minus_ascending": -0.625,
+          "gamma": 0.3
+        },
+        {
+          "ascending_dominance": 0.09375,
+          "descending_dominance": 0.109375,
+          "descending_minus_ascending": 0.015625,
+          "gamma": 0.4
+        },
+        {
+          "ascending_dominance": 0.234375,
+          "descending_dominance": 0.140625,
+          "descending_minus_ascending": -0.09375,
+          "gamma": 0.5
+        },
+        {
+          "ascending_dominance": 0.109375,
+          "descending_dominance": 0.21875,
+          "descending_minus_ascending": 0.109375,
+          "gamma": 0.6
+        },
+        {
+          "ascending_dominance": 0.734375,
+          "descending_dominance": 0.09375,
+          "descending_minus_ascending": -0.640625,
+          "gamma": 0.7
+        },
+        {
+          "ascending_dominance": 0.21875,
+          "descending_dominance": 0.15625,
+          "descending_minus_ascending": -0.0625,
+          "gamma": 0.8
+        },
+        {
+          "ascending_dominance": 0.125,
+          "descending_dominance": 0.09375,
+          "descending_minus_ascending": -0.03125,
+          "gamma": 0.9
+        },
+        {
+          "ascending_dominance": 0.125,
+          "descending_dominance": 0.21875,
+          "descending_minus_ascending": 0.09375,
+          "gamma": 1.0
+        }
+      ],
+      "loop_area": -0.15078125000000003,
+      "replicate": 5
+    },
+    {
+      "contrasts": [
+        {
+          "ascending_dominance": 0.828125,
+          "descending_dominance": 0.125,
+          "descending_minus_ascending": -0.703125,
+          "gamma": 0.0
+        },
+        {
+          "ascending_dominance": 0.484375,
+          "descending_dominance": 0.125,
+          "descending_minus_ascending": -0.359375,
+          "gamma": 0.1
+        },
+        {
+          "ascending_dominance": 0.3125,
+          "descending_dominance": 0.609375,
+          "descending_minus_ascending": 0.296875,
+          "gamma": 0.2
+        },
+        {
+          "ascending_dominance": 0.625,
+          "descending_dominance": 0.1875,
+          "descending_minus_ascending": -0.4375,
+          "gamma": 0.3
+        },
+        {
+          "ascending_dominance": 0.28125,
+          "descending_dominance": 0.265625,
+          "descending_minus_ascending": -0.015625,
+          "gamma": 0.4
+        },
+        {
+          "ascending_dominance": 0.21875,
+          "descending_dominance": 0.140625,
+          "descending_minus_ascending": -0.078125,
+          "gamma": 0.5
+        },
+        {
+          "ascending_dominance": 0.171875,
+          "descending_dominance": 0.578125,
+          "descending_minus_ascending": 0.40625,
+          "gamma": 0.6
+        },
+        {
+          "ascending_dominance": 0.6875,
+          "descending_dominance": 0.28125,
+          "descending_minus_ascending": -0.40625,
+          "gamma": 0.7
+        },
+        {
+          "ascending_dominance": 0.09375,
+          "descending_dominance": 0.28125,
+          "descending_minus_ascending": 0.1875,
+          "gamma": 0.8
+        },
+        {
+          "ascending_dominance": 0.109375,
+          "descending_dominance": 0.0625,
+          "descending_minus_ascending": -0.046875,
+          "gamma": 0.9
+        },
+        {
+          "ascending_dominance": 0.125,
+          "descending_dominance": 0.75,
+          "descending_minus_ascending": 0.625,
+          "gamma": 1.0
+        }
+      ],
+      "loop_area": -0.049218750000000026,
+      "replicate": 6
+    },
+    {
+      "contrasts": [
+        {
+          "ascending_dominance": 0.765625,
+          "descending_dominance": 0.09375,
+          "descending_minus_ascending": -0.671875,
+          "gamma": 0.0
+        },
+        {
+          "ascending_dominance": 0.328125,
+          "descending_dominance": 0.1875,
+          "descending_minus_ascending": -0.140625,
+          "gamma": 0.1
+        },
+        {
+          "ascending_dominance": 0.21875,
+          "descending_dominance": 0.734375,
+          "descending_minus_ascending": 0.515625,
+          "gamma": 0.2
+        },
+        {
+          "ascending_dominance": 0.6875,
+          "descending_dominance": 0.109375,
+          "descending_minus_ascending": -0.578125,
+          "gamma": 0.3
+        },
+        {
+          "ascending_dominance": 0.125,
+          "descending_dominance": 0.109375,
+          "descending_minus_ascending": -0.015625,
+          "gamma": 0.4
+        },
+        {
+          "ascending_dominance": 0.125,
+          "descending_dominance": 0.140625,
+          "descending_minus_ascending": 0.015625,
+          "gamma": 0.5
+        },
+        {
+          "ascending_dominance": 0.15625,
+          "descending_dominance": 0.640625,
+          "descending_minus_ascending": 0.484375,
+          "gamma": 0.6
+        },
+        {
+          "ascending_dominance": 0.59375,
+          "descending_dominance": 0.09375,
+          "descending_minus_ascending": -0.5,
+          "gamma": 0.7
+        },
+        {
+          "ascending_dominance": 0.296875,
+          "descending_dominance": 0.15625,
+          "descending_minus_ascending": -0.140625,
+          "gamma": 0.8
+        },
+        {
+          "ascending_dominance": 0.125,
+          "descending_dominance": 0.15625,
+          "descending_minus_ascending": 0.03125,
+          "gamma": 0.9
+        },
+        {
+          "ascending_dominance": 0.234375,
+          "descending_dominance": 0.609375,
+          "descending_minus_ascending": 0.375,
+          "gamma": 1.0
+        }
+      ],
+      "loop_area": -0.04765625000000004,
+      "replicate": 7
+    },
+    {
+      "contrasts": [
+        {
+          "ascending_dominance": 0.765625,
+          "descending_dominance": 0.09375,
+          "descending_minus_ascending": -0.671875,
+          "gamma": 0.0
+        },
+        {
+          "ascending_dominance": 0.359375,
+          "descending_dominance": 0.15625,
+          "descending_minus_ascending": -0.203125,
+          "gamma": 0.1
+        },
+        {
+          "ascending_dominance": 0.203125,
+          "descending_dominance": 0.6875,
+          "descending_minus_ascending": 0.484375,
+          "gamma": 0.2
+        },
+        {
+          "ascending_dominance": 0.359375,
+          "descending_dominance": 0.09375,
+          "descending_minus_ascending": -0.265625,
+          "gamma": 0.3
+        },
+        {
+          "ascending_dominance": 0.21875,
+          "descending_dominance": 0.125,
+          "descending_minus_ascending": -0.09375,
+          "gamma": 0.4
+        },
+        {
+          "ascending_dominance": 0.125,
+          "descending_dominance": 0.171875,
+          "descending_minus_ascending": 0.046875,
+          "gamma": 0.5
+        },
+        {
+          "ascending_dominance": 0.125,
+          "descending_dominance": 0.671875,
+          "descending_minus_ascending": 0.546875,
+          "gamma": 0.6
+        },
+        {
+          "ascending_dominance": 0.78125,
+          "descending_dominance": 0.203125,
+          "descending_minus_ascending": -0.578125,
+          "gamma": 0.7
+        },
+        {
+          "ascending_dominance": 0.203125,
+          "descending_dominance": 0.171875,
+          "descending_minus_ascending": -0.03125,
+          "gamma": 0.8
+        },
+        {
+          "ascending_dominance": 0.390625,
+          "descending_dominance": 0.4375,
+          "descending_minus_ascending": 0.046875,
+          "gamma": 0.9
+        },
+        {
+          "ascending_dominance": 0.34375,
+          "descending_dominance": 0.8125,
+          "descending_minus_ascending": 0.46875,
+          "gamma": 1.0
+        }
+      ],
+      "loop_area": -0.014843750000000051,
+      "replicate": 8
+    },
+    {
+      "contrasts": [
+        {
+          "ascending_dominance": 0.734375,
+          "descending_dominance": 0.09375,
+          "descending_minus_ascending": -0.640625,
+          "gamma": 0.0
+        },
+        {
+          "ascending_dominance": 0.125,
+          "descending_dominance": 0.125,
+          "descending_minus_ascending": 0.0,
+          "gamma": 0.1
+        },
+        {
+          "ascending_dominance": 0.328125,
+          "descending_dominance": 0.546875,
+          "descending_minus_ascending": 0.21875,
+          "gamma": 0.2
+        },
+        {
+          "ascending_dominance": 0.5625,
+          "descending_dominance": 0.125,
+          "descending_minus_ascending": -0.4375,
+          "gamma": 0.3
+        },
+        {
+          "ascending_dominance": 0.078125,
+          "descending_dominance": 0.140625,
+          "descending_minus_ascending": 0.0625,
+          "gamma": 0.4
+        },
+        {
+          "ascending_dominance": 0.109375,
+          "descending_dominance": 0.375,
+          "descending_minus_ascending": 0.265625,
+          "gamma": 0.5
+        },
+        {
+          "ascending_dominance": 0.203125,
+          "descending_dominance": 0.484375,
+          "descending_minus_ascending": 0.28125,
+          "gamma": 0.6
+        },
+        {
+          "ascending_dominance": 0.578125,
+          "descending_dominance": 0.5,
+          "descending_minus_ascending": -0.078125,
+          "gamma": 0.7
+        },
+        {
+          "ascending_dominance": 0.109375,
+          "descending_dominance": 0.3125,
+          "descending_minus_ascending": 0.203125,
+          "gamma": 0.8
+        },
+        {
+          "ascending_dominance": 0.140625,
+          "descending_dominance": 0.15625,
+          "descending_minus_ascending": 0.015625,
+          "gamma": 0.9
+        },
+        {
+          "ascending_dominance": 0.21875,
+          "descending_dominance": 0.765625,
+          "descending_minus_ascending": 0.546875,
+          "gamma": 1.0
+        }
+      ],
+      "loop_area": 0.04843749999999998,
+      "replicate": 9
+    },
+    {
+      "contrasts": [
+        {
+          "ascending_dominance": 0.734375,
+          "descending_dominance": 0.171875,
+          "descending_minus_ascending": -0.5625,
+          "gamma": 0.0
+        },
+        {
+          "ascending_dominance": 0.21875,
+          "descending_dominance": 0.125,
+          "descending_minus_ascending": -0.09375,
+          "gamma": 0.1
+        },
+        {
+          "ascending_dominance": 0.390625,
+          "descending_dominance": 0.71875,
+          "descending_minus_ascending": 0.328125,
+          "gamma": 0.2
+        },
+        {
+          "ascending_dominance": 0.484375,
+          "descending_dominance": 0.328125,
+          "descending_minus_ascending": -0.15625,
+          "gamma": 0.3
+        },
+        {
+          "ascending_dominance": 0.3125,
+          "descending_dominance": 0.125,
+          "descending_minus_ascending": -0.1875,
+          "gamma": 0.4
+        },
+        {
+          "ascending_dominance": 0.265625,
+          "descending_dominance": 0.109375,
+          "descending_minus_ascending": -0.15625,
+          "gamma": 0.5
+        },
+        {
+          "ascending_dominance": 0.125,
+          "descending_dominance": 0.34375,
+          "descending_minus_ascending": 0.21875,
+          "gamma": 0.6
+        },
+        {
+          "ascending_dominance": 0.484375,
+          "descending_dominance": 0.109375,
+          "descending_minus_ascending": -0.375,
+          "gamma": 0.7
+        },
+        {
+          "ascending_dominance": 0.09375,
+          "descending_dominance": 0.109375,
+          "descending_minus_ascending": 0.015625,
+          "gamma": 0.8
+        },
+        {
+          "ascending_dominance": 0.09375,
+          "descending_dominance": 0.203125,
+          "descending_minus_ascending": 0.109375,
+          "gamma": 0.9
+        },
+        {
+          "ascending_dominance": 0.0625,
+          "descending_dominance": 0.84375,
+          "descending_minus_ascending": 0.78125,
+          "gamma": 1.0
+        }
+      ],
+      "loop_area": -0.01875000000000003,
+      "replicate": 10
+    },
+    {
+      "contrasts": [
+        {
+          "ascending_dominance": 0.796875,
+          "descending_dominance": 0.125,
+          "descending_minus_ascending": -0.671875,
+          "gamma": 0.0
+        },
+        {
+          "ascending_dominance": 0.1875,
+          "descending_dominance": 0.140625,
+          "descending_minus_ascending": -0.046875,
+          "gamma": 0.1
+        },
+        {
+          "ascending_dominance": 0.25,
+          "descending_dominance": 0.40625,
+          "descending_minus_ascending": 0.15625,
+          "gamma": 0.2
+        },
+        {
+          "ascending_dominance": 0.65625,
+          "descending_dominance": 0.09375,
+          "descending_minus_ascending": -0.5625,
+          "gamma": 0.3
+        },
+        {
+          "ascending_dominance": 0.125,
+          "descending_dominance": 0.125,
+          "descending_minus_ascending": 0.0,
+          "gamma": 0.4
+        },
+        {
+          "ascending_dominance": 0.234375,
+          "descending_dominance": 0.125,
+          "descending_minus_ascending": -0.109375,
+          "gamma": 0.5
+        },
+        {
+          "ascending_dominance": 0.09375,
+          "descending_dominance": 0.546875,
+          "descending_minus_ascending": 0.453125,
+          "gamma": 0.6
+        },
+        {
+          "ascending_dominance": 0.875,
+          "descending_dominance": 0.203125,
+          "descending_minus_ascending": -0.671875,
+          "gamma": 0.7
+        },
+        {
+          "ascending_dominance": 0.46875,
+          "descending_dominance": 0.171875,
+          "descending_minus_ascending": -0.296875,
+          "gamma": 0.8
+        },
+        {
+          "ascending_dominance": 0.328125,
+          "descending_dominance": 0.171875,
+          "descending_minus_ascending": -0.15625,
+          "gamma": 0.9
+        },
+        {
+          "ascending_dominance": 0.09375,
+          "descending_dominance": 0.515625,
+          "descending_minus_ascending": 0.421875,
+          "gamma": 1.0
+        }
+      ],
+      "loop_area": -0.13593750000000004,
+      "replicate": 11
+    }
+  ],
+  "validation": {
+    "failures": [],
+    "passed": true,
+    "warnings": []
+  }
+}
